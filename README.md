@@ -24,15 +24,72 @@ toolchains across developers and CI without modifying Zephyr itself.
 `west-env` is a **west extension**, not a standalone tool.  
 It must be used from within a **west workspace**.
 
-The `west-env` repository itself is **not** a workspace and does not act as one.
+The `west-env` repository itself is **not** a workspace and must not be treated
+as one (no `.west/`, `zephyr/`, or build artifacts should appear in this repo).
 
-To avoid confusion, reference workspace bootstrap scripts are provided under
-`example/`. These scripts demonstrate the recommended way to create a clean
-workspace and integrate `west-env`.
+To avoid confusion, a **copy-only reference workspace template** is provided
+under `example/`.
+
+> ⚠️ The contents of `example/` are **not meant to be executed in place**.
+> Always copy the example workspace to a separate directory before using it.
 
 👉 **See [`example/README.md`](example/README.md) for step-by-step workspace setup instructions.**
 
 ---
+
+## Example: Building hello_world
+
+Once your workspace is set up (see `example/README.md`) and the environment
+checks pass, you can build a Zephyr sample using `west-env`.
+
+### 1. Enter the workspace shell
+
+From the workspace root:
+
+```cmd
+scripts\shell.cmd
+````
+
+This ensures the correct Python environment and tooling are active.
+
+---
+
+### 2. Verify environment health
+
+```sh
+west env doctor
+```
+
+All checks should pass before continuing.
+
+---
+
+### 3. Build the hello_world sample
+
+```sh
+west env build -b nrf52840dk/nrf52840 samples/hello_world
+```
+
+When container mode is enabled in `west-env.yml`, the build will be executed
+inside the configured container automatically.
+
+Build artifacts will appear under:
+
+```
+build/
+```
+
+---
+
+### 4. (Optional) Force container execution
+
+To explicitly force container execution regardless of configuration:
+
+```sh
+west env build --container -b nrf52840dk/nrf52840 samples/hello_world
+```
+
+This is useful for CI validation or debugging container behavior.
 
 ## Configuration
 

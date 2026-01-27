@@ -2,26 +2,46 @@
 setlocal EnableDelayedExpansion
 
 REM =====================================================
-REM Enforce execution from workspace root
+REM Resolve script directory (…\scripts)
 REM =====================================================
 set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 
-if /I not "%CD%"=="%SCRIPT_DIR%" (
-  echo ERROR: bootstrap.cmd must be run from its containing directory.
+REM Workspace root is parent of script directory
+for %%I in ("%SCRIPT_DIR%\..") do set "WORKSPACE_DIR=%%~fI"
+
+REM =====================================================
+REM Enforce execution from workspace root
+REM =====================================================
+if /I not "%CD%"=="%WORKSPACE_DIR%" (
+  echo ERROR: bootstrap.cmd must be run from the workspace root.
   echo.
+  echo Workspace root:
+  echo   %WORKSPACE_DIR%
   echo Current directory:
   echo   %CD%
-  echo Script directory:
-  echo   %SCRIPT_DIR%
   echo.
-  echo Please cd into the workspace directory and run:
-  echo   bootstrap.cmd
+  echo Please run:
+  echo   cd %WORKSPACE_DIR%
+  echo   scripts\bootstrap.cmd
   exit /b 1
 )
 
-echo Bootstrapping west-env workspace (Windows)...
-echo.
+REM =====================================================
+REM Guard: must NOT be inside a git repository (copy-only)
+REM =====================================================
+if exist "%WORKSPACE_DIR%\.git" (
+  echo ERROR: This workspace appears to be inside a git repository.
+  echo.
+  echo The example workspace is COPY-ONLY and must be used from
+  echo a separate directory outside the west-env repository.
+  echo.
+  echo Correct usage:
+  echo   1. Create a new directory outside the repo
+  echo   2. Copy example\workspace\* into it
+  echo   3. Run scripts\bootstrap.cmd from there
+  exit /b 1
+)
 
 REM =====================================================
 REM Guard: must NOT be run inside west-env repo
@@ -29,23 +49,28 @@ REM =====================================================
 if exist pyproject.toml (
   echo ERROR: bootstrap.cmd must NOT be run inside the west-env repository.
   echo.
-  echo Please do the following instead:
-  echo   1. Create a new workspace directory
-  echo   2. Run bootstrap.cmd from that directory
-  echo.
-  echo Example:
-  echo   mkdir west-env-ws
-  echo   cd west-env-ws
-  echo   bootstrap.cmd
+  echo Create a separate workspace directory and run bootstrap there.
   exit /b 1
 )
 
 REM =====================================================
+REM Validate west.yml presence
+REM =====================================================
+if not exist "%WORKSPACE_DIR%\west.yml" (
+  echo ERROR: west.yml not found in workspace root.
+  echo.
+  echo This workspace must be created by copying
+  echo example\workspace\* into a new directory.
+  exit /b 1
+)
+
+echo Bootstrapping west-env workspace...
+echo.
+
+REM =====================================================
 REM Paths
 REM =====================================================
-set "WORKSPACE_DIR=%CD%"
 set "VENV_DIR=.venv"
-set "MODULE_DIR=modules\west-env"
 set "WEST_YML=west.yml"
 
 REM =====================================================
@@ -81,48 +106,26 @@ python -m pip install --upgrade pip
 python -m pip install west
 
 REM =====================================================
-REM Create minimal west.yml if missing
-REM =====================================================
-if not exist "%WEST_YML%" (
-  echo Creating west.yml...
-  (
-    echo manifest:
-    echo   projects:
-    echo     - name: west-env
-    echo       path: modules/west-env
-    echo       url: https://github.com/bitconcepts/west-env
-    echo       revision: main
-    echo       west-commands: west-commands.yml
-  ) > "%WEST_YML%"
-)
-
-REM =====================================================
-REM Initialize west workspace (FORCED CWD)
+REM Initialize west workspace
 REM =====================================================
 if not exist "%WORKSPACE_DIR%\.west" (
   echo Initializing west workspace...
-  pushd "%WORKSPACE_DIR%" >nul
   west init -l .
   if errorlevel 1 (
-    popd >nul
     echo ERROR: west init failed
     exit /b 1
   )
-  popd >nul
 )
 
 REM =====================================================
-REM Update workspace (FORCED CWD)
+REM Update workspace
 REM =====================================================
 echo Updating workspace...
-pushd "%WORKSPACE_DIR%" >nul
 west update
 if errorlevel 1 (
-  popd >nul
   echo ERROR: west update failed
   exit /b 1
 )
-popd >nul
 
 echo.
 echo Bootstrap complete.
@@ -131,5 +134,5 @@ echo Workspace location:
 echo   %WORKSPACE_DIR%
 echo.
 echo Next steps:
-echo   shell.cmd
+echo   scripts\shell.cmd
 echo   west env doctor

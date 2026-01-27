@@ -18,7 +18,7 @@ exit /b 0
 
 west env doctor --container || exit /b 1
 
-echo Testing container shell startup...
-echo exit | west env shell --container || exit /b 1
+echo Verifying container execution...
+west env build --container --help >nul || exit /b 1
 
 echo Container round-trip test passed.

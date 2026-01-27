@@ -1,84 +1,125 @@
 # west-env Workspace Example
 
-This directory contains **reference scripts** demonstrating how to set up a
-clean west workspace and integrate the `west-env` extension.
+This directory contains a **reference west workspace template** demonstrating
+how to use the `west-env` extension correctly.
 
-These scripts are intentionally placed under `example/` to avoid confusion:
-the `west-env` repository itself is **not** a west workspace.
+> The `west-env` repository itself is **not** a west workspace.
+> This example exists to show how a proper workspace should be structured.
+
+Nothing under `example/` is meant to be executed in place or modified.  
+Users are expected to **copy the example workspace** to a new location.
 
 ---
 
 ## What this example provides
 
-* A clean, reproducible west workspace
-* A Python virtual environment for tooling
-* Automatic integration of `west-env` as a west extension
-* A safe reference for local testing and CI
+* A minimal, correct west workspace layout
+* A pinned `west.yml` referencing Zephyr and `west-env`
+* A sample `west-env.yml` configuration
+* Windows helper scripts for:
+  * bootstrapping the workspace
+  * entering the workspace shell
+  * validating setup (round-trip tests)
+
+This layout mirrors how `west-env` is intended to be used in real projects and CI.
 
 ---
 
-## Windows: Workspace Bootstrap
+## Workspace template layout
+
+```
+
+example/
+└─ workspace/
+   ├─ west.yml
+   ├─ west-env.yml
+   └─ scripts/
+      ├─ bootstrap.cmd
+      ├─ shell.cmd
+      ├─ test-roundtrip.cmd
+      └─ test-roundtrip-container.cmd
+
+```
+
+* `west.yml` and `west-env.yml` are **required**
+* Scripts assume they are run from the **workspace root**
+* Scripts will fail intentionally if run from an invalid location
+
+---
+
+## Windows: Creating a workspace from the example
 
 ### 1. Create a new workspace directory
-
-Choose or create a directory that will act as your west workspace:
 
 ```cmd
 mkdir west-env-ws
 cd west-env-ws
 ```
 
-This directory will become the workspace root.
+This directory will become your west workspace root.
 
 ---
 
-### 2. Copy the example scripts into the workspace
+### 2. Copy the example workspace template
 
-From the `example/` directory, copy the scripts into your workspace root:
+From a clone of the `west-env` repository, copy the contents of
+`example\workspace\` into your workspace directory.
+
+For example, if `west-env` is cloned at `C:\src\west-env`:
 
 ```cmd
-copy example\workspace\bootstrap.cmd .
-copy example\workspace\shell.cmd .
-copy example\workspace\test-roundtrip.cmd .
+xcopy /E /I C:\src\west-env\example\workspace\* .
 ```
 
-> These scripts **must be run from the workspace root**.
+After copying, your workspace root should contain:
+
+```
+west-env-ws/
+├─ west.yml
+├─ west-env.yml
+└─ scripts/
+```
 
 ---
 
 ### 3. Run bootstrap
 
+From the workspace root:
+
 ```cmd
-bootstrap.cmd
+scripts\bootstrap.cmd
 ```
 
 This will:
 
 * create a Python virtual environment (`.venv`)
 * install `west`
-* generate a minimal `west.yml`
-* fetch `west-env` into `modules/west-env`
 * initialize the west workspace
+* fetch required projects
 * run `west update`
 
-The script will fail intentionally if run from an invalid location.
+The script will fail if:
+
+* run from the wrong directory
+* run inside a git repository
+* required files (`west.yml`) are missing
 
 ---
 
 ### 4. Enter the workspace shell
 
 ```cmd
-shell.cmd
+scripts\shell.cmd
 ```
 
 You should see output similar to:
 
 ```
 Python: vX.Y.Z
-West: vA.B.C
+West:   vA.B.C
 ```
 
-You are now in the workspace root with the correct environment activated.
+You are now in the workspace root with the correct environment active.
 
 ---
 
@@ -88,63 +129,25 @@ You are now in the workspace root with the correct environment activated.
 west env doctor
 ```
 
-If this succeeds, the workspace is correctly configured and `west-env`
-is available.
+If this succeeds, the workspace and `west-env` extension are correctly configured.
 
 ---
 
-## Expected workspace layout
+## Notes
 
-After a successful bootstrap, the workspace should look like this:
+* The example workspace is intentionally minimal.
+* The workspace directory should **not** be a git repository.
+* Additional projects (e.g. Zephyr itself) may be added to `west.yml` as needed.
+* The scripts under `scripts/` are **reference helpers**, not part of the core
+  `west-env` functionality.
 
-```
-west-env-ws/
-├─ .venv/
-├─ .west/
-├─ west.yml
-├─ bootstrap.cmd
-├─ shell.cmd
-├─ test-roundtrip.cmd
-└─ modules/
-   └─ west-env/
-```
+---
 
-## Quick start (Windows)
+## Summary
 
-You need the example scripts from the `west-env` repository. A brand-new workspace
-directory won’t have `example\workspace\bootstrap.cmd` until you either clone the
-repo or download/copy the scripts into the workspace.
+If you remember only one rule:
 
-### Option A (recommended): clone the repo, then copy scripts into the workspace
+> **Copy `example/workspace/` into a new directory and work from there.**
+> Do not try to turn the `west-env` repository itself into a workspace.
 
-```cmd
-mkdir west-env-ws
-cd west-env-ws
-
-git clone https://github.com/bitconcepts/west-env modules\west-env
-
-copy modules\west-env\example\workspace\bootstrap.cmd .
-copy modules\west-env\example\workspace\shell.cmd .
-copy modules\west-env\example\workspace\test-roundtrip.cmd .
-
-bootstrap.cmd
-shell.cmd
-west env doctor
-````
-
-### Option B: if you already have a local `west-env` repo checkout
-
-Replace `C:\path\to\west-env` with your local repo path:
-
-```cmd
-mkdir west-env-ws
-cd west-env-ws
-
-copy C:\path\to\west-env\example\workspace\bootstrap.cmd .
-copy C:\path\to\west-env\example\workspace\shell.cmd .
-copy C:\path\to\west-env\example\workspace\test-roundtrip.cmd .
-
-bootstrap.cmd
-shell.cmd
-west env doctor
-```
+This example exists to make the correct usage obvious and reproducible.
