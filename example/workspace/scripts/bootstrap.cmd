@@ -17,7 +17,6 @@ if exist "%WORKSPACE_DIR%\.git" (
   exit /b 1
 )
 
-REM If someone copied scripts into the repo by mistake, refuse.
 if exist "%WORKSPACE_DIR%\pyproject.toml" (
   echo ERROR: bootstrap.cmd must NOT be run inside the west-env repository.
   echo Create a separate workspace directory and run bootstrap there.
@@ -64,7 +63,7 @@ python -m pip install west
 if errorlevel 1 exit /b 1
 
 REM =====================================================
-REM Initialize west workspace (DOC-CORRECT)
+REM Initialize west workspace (Windows-safe)
 REM =====================================================
 if not exist "%WORKSPACE_DIR%\.west" (
   echo Initializing west workspace...
@@ -77,10 +76,9 @@ if not exist "%WORKSPACE_DIR%\.west" (
   )
   popd
 )
-exit /b 1
 
 REM =====================================================
-REM Update workspace (run from workspace root)
+REM Update workspace (materializes modules/, zephyr/)
 REM =====================================================
 echo Updating workspace...
 pushd "%WORKSPACE_DIR%"
