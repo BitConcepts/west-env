@@ -1,0 +1,12 @@
+# Normalize line endings
+* text=auto
+
+# Shell scripts
+*.sh text eol=lf
+
+# Python
+*.py text eol=lf
+
+# YAML
+*.yml text eol=lf
+*.yaml text eol=lf
