@@ -1,26 +1,31 @@
-# Python
+# ---- Python / venv ----
+.venv/
 __pycache__/
 *.py[cod]
+*.pyo
 *.egg-info/
-.venv/
-venv/
+west_env.egg-info/
 
-# Build artifacts
+# ---- Build artifacts ----
 .build/
 build/
 out/
 
-# Editors
+# ---- west ----
+.west/
+
+# ---- Editors / IDEs ----
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
+# ---- OS ----
 .DS_Store
+Thumbs.db
 
-# Logs
+# ---- Logs ----
 *.log
 
-# Local config overrides
+# ---- Local config overrides ----
 west-env.local.yml
