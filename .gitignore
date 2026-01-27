@@ -11,8 +11,13 @@ west_env.egg-info/
 build/
 out/
 
-# ---- west ----
+# ---- west (workspace state; must never be committed) ----
 .west/
+modules/
+zephyr/
+tools/
+bootloader/
+west-env-ws/
 
 # ---- Editors / IDEs ----
 .vscode/

@@ -1,0 +1,19 @@
+manifest:
+  defaults:
+    remote: zephyrproject
+
+  remotes:
+    - name: zephyrproject
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    - name: zephyr
+      path: zephyr
+      revision: v4.3.0
+      import: true
+
+    - name: west-env
+      path: modules/west-env
+      url: https://github.com/bitconcepts/west-env
+      revision: main
+      west-commands: west-commands.yml

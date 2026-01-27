@@ -2,6 +2,9 @@ from pathlib import Path
 import subprocess
 from west_env.engine import get_engine
 
+CONTAINER_WORKDIR = "/work"
+
+
 def run_container(cfg, command, interactive=False):
     engine, warned = get_engine(cfg.engine)
 
@@ -9,12 +12,15 @@ def run_container(cfg, command, interactive=False):
         print("[WARN] Both Docker and Podman detected; using Docker")
         print("       Set engine explicitly in west-env.yml to silence this warning")
 
-    workdir = Path.cwd()
+    host_workdir = Path.cwd().resolve()
 
     args = [
-        "run", "--rm",
-        "-v", f"{workdir}:{workdir}",
-        "-w", str(workdir),
+        "run",
+        "--rm",
+        "-v",
+        f"{host_workdir}:{CONTAINER_WORKDIR}",
+        "-w",
+        CONTAINER_WORKDIR,
     ]
 
     if interactive:
@@ -24,6 +30,7 @@ def run_container(cfg, command, interactive=False):
     args += command
 
     engine.run(args)
+
 
 def check_container(cfg):
     try:
@@ -53,5 +60,6 @@ def check_container(cfg):
     except Exception:
         print(f"[WARN] container image not present locally: {cfg.image}")
         print("       it will be pulled on first use")
+        print("       ensure the image exists and is accessible")
 
     return True

@@ -1,7 +1,0 @@
-manifest:
-  projects:
-    - name: west-env
-      path: modules/west-env
-      url: https://github.com/bitconcepts/west-env
-      revision: main
-      west-commands: west-commands.yml
