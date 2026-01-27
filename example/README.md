@@ -39,7 +39,7 @@ example/
       ├─ test-roundtrip.cmd
       └─ test-roundtrip-container.cmd
 
-```
+````
 
 * `west.yml` and `west-env.yml` are **required**
 * Scripts assume they are run from the **workspace root**
@@ -49,12 +49,17 @@ example/
 
 ## Windows: Creating a workspace from the example
 
-### 1. Create a new workspace directory
+### 1. Create an empty workspace directory
+
+Create a new directory that will become your west workspace.
+This directory must be outside the `west-env` repository.
+
+For example:
 
 ```cmd
-mkdir west-env-ws
-cd west-env-ws
-```
+mkdir C:\work\west-env-ws
+cd C:\work\west-env-ws
+````
 
 This directory will become your west workspace root.
 
@@ -62,8 +67,8 @@ This directory will become your west workspace root.
 
 ### 2. Copy the example workspace template
 
-From a clone of the `west-env` repository, copy the contents of
-`example\workspace\` into your workspace directory.
+From a clone of the `west-env` repository, copy the **`example\workspace\`**
+directory into your new workspace directory.
 
 For example, if `west-env` is cloned at `C:\src\west-env`:
 
