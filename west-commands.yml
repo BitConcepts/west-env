@@ -1,0 +1,6 @@
+west-commands:
+  - file: west_commands/env.py
+    commands:
+      - name: env
+        class: EnvCommand
+        help: Manage reproducible build environments

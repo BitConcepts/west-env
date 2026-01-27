@@ -21,7 +21,7 @@ echo.
 echo west-env workspace shell activated.
 echo.
 echo Python: v%PY_VER%
-echo West: v%WEST_VER%
+echo West: %WEST_VER%
 echo.
 echo You are now in the workspace root.
 echo Type "exit" to leave.

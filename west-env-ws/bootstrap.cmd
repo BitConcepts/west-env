@@ -1,6 +1,25 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+REM =====================================================
+REM Enforce execution from workspace root
+REM =====================================================
+set "SCRIPT_DIR=%~dp0"
+if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
+
+if /I not "%CD%"=="%SCRIPT_DIR%" (
+  echo ERROR: bootstrap.cmd must be run from its containing directory.
+  echo.
+  echo Current directory:
+  echo   %CD%
+  echo Script directory:
+  echo   %SCRIPT_DIR%
+  echo.
+  echo Please cd into the workspace directory and run:
+  echo   bootstrap.cmd
+  exit /b 1
+)
+
 echo Bootstrapping west-env workspace (Windows)...
 echo.
 
@@ -73,22 +92,37 @@ if not exist "%WEST_YML%" (
     echo       path: modules/west-env
     echo       url: https://github.com/bitconcepts/west-env
     echo       revision: main
+    echo       west-commands: west-commands.yml
   ) > "%WEST_YML%"
 )
 
 REM =====================================================
-REM Initialize west workspace
+REM Initialize west workspace (FORCED CWD)
 REM =====================================================
-if not exist ".west" (
+if not exist "%WORKSPACE_DIR%\.west" (
   echo Initializing west workspace...
+  pushd "%WORKSPACE_DIR%" >nul
   west init -l .
+  if errorlevel 1 (
+    popd >nul
+    echo ERROR: west init failed
+    exit /b 1
+  )
+  popd >nul
 )
 
 REM =====================================================
-REM Update workspace (fetch west-env)
+REM Update workspace (FORCED CWD)
 REM =====================================================
 echo Updating workspace...
+pushd "%WORKSPACE_DIR%" >nul
 west update
+if errorlevel 1 (
+  popd >nul
+  echo ERROR: west update failed
+  exit /b 1
+)
+popd >nul
 
 echo.
 echo Bootstrap complete.

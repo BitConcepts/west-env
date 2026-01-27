@@ -25,73 +25,12 @@ toolchains across developers and CI without modifying Zephyr itself.
 It must be used from within a **west workspace**.
 
 The `west-env` repository itself is **not** a workspace and does not act as one.
-A separate workspace directory is required.
 
-### Windows (recommended workflow)
+To avoid confusion, reference workspace bootstrap scripts are provided under
+`example/`. These scripts demonstrate the recommended way to create a clean
+workspace and integrate `west-env`.
 
-#### 1. Create a workspace directory
-
-```cmd
-mkdir west-env-ws
-cd west-env-ws
-````
-
-This directory will become your west workspace.
-
-#### 2. Run bootstrap
-
-```cmd
-bootstrap.cmd
-```
-
-This will:
-
-* create a Python virtual environment (`.venv`)
-* install `west`
-* create a minimal `west.yml`
-* fetch `west-env` into `modules/west-env`
-* initialize the west workspace
-
-> ⚠️ `bootstrap.cmd` must **not** be run inside the `west-env` repository.
-> It will fail intentionally if run from there.
-
-#### 3. Enter the workspace shell
-
-```cmd
-shell.cmd
-```
-
-You should see output similar to:
-
-```
-Python: vX.Y.Z
-West: vA.B.C
-```
-
-You are now in the workspace root with the correct environment activated.
-
-#### 4. Verify installation
-
-```cmd
-west env doctor
-```
-
-If this succeeds, the workspace is correctly set up.
-
-### Resulting layout
-
-```
-west-env-ws/
-├─ .venv/
-├─ .west/
-├─ west.yml
-├─ bootstrap.cmd
-├─ shell.cmd
-└─ modules/
-   └─ west-env/
-```
-
-This mirrors how west extensions are used in real Zephyr workspaces and CI.
+👉 **See [`example/README.md`](example/README.md) for step-by-step workspace setup instructions.**
 
 ---
 
@@ -105,7 +44,7 @@ env:
   container:
     engine: auto   # docker | podman | auto
     image: ghcr.io/zephyrproject-rtos/sdk:0.17.0
-```
+````
 
 ### Container engine selection
 
