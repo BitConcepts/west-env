@@ -1,0 +1,8 @@
+name: west-env
+build:
+  cmake: false
+  kconfig: false
+description: >
+  West extension providing reproducible build environments for Zephyr,
+  supporting native and container-backed workflows without modifying
+  Zephyr core.

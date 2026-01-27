@@ -1,0 +1,39 @@
+name: west-env doctor
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  doctor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install west
+        run: pip install west
+
+      - name: Install west-env
+        run: pip install -e .
+
+      - name: Run west env doctor (native)
+        run: west env doctor
+
+      - name: POSIX round-trip test (native)
+        run: |
+          chmod +x test-roundtrip.sh
+          ./test-roundtrip.sh
+
+      - name: POSIX round-trip test (container)
+        if: ${{ env.TEST_CONTAINER == '1' }}
+        env:
+          TEST_CONTAINER: "1"
+        run: |
+          chmod +x test-roundtrip-container.sh
+          ./test-roundtrip-container.sh

@@ -1,0 +1,8 @@
+manifest:
+  version: "0.12"
+
+  projects:
+    - name: west-env
+      path: modules/west-env
+      url: https://github.com/tbitcs/west-env
+      revision: main

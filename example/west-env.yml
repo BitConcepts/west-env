@@ -1,0 +1,5 @@
+env:
+  type: container
+  container:
+    engine: docker
+    image: ghcr.io/zephyrproject-rtos/sdk:0.17.0
