@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Ensure west-env repo root is on sys.path
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from west.commands import WestCommand
 from west_env.config import load_config
 from west_env.container import run_container, check_container
