@@ -19,7 +19,6 @@ Users are expected to **copy the example workspace** to a new location.
 * Windows helper scripts for:
   * bootstrapping the workspace
   * entering the workspace shell
-  * validating setup (round-trip tests)
 
 This layout mirrors how `west-env` is intended to be used in real projects and CI.
 
@@ -36,8 +35,6 @@ example/
    └─ scripts/
       ├─ bootstrap.cmd
       ├─ shell.cmd
-      ├─ test-roundtrip.cmd
-      └─ test-roundtrip-container.cmd
 
 ````
 

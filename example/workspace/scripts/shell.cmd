@@ -10,7 +10,9 @@ if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 REM Workspace root is parent of script directory
 for %%I in ("%SCRIPT_DIR%\..") do set "WORKSPACE_DIR=%%~fI"
 
+REM =====================================================
 REM Enforce execution from workspace root
+REM =====================================================
 if /I not "%CD%"=="%WORKSPACE_DIR%" (
   echo ERROR: shell.cmd must be run from the workspace root.
   echo.
@@ -26,6 +28,11 @@ if /I not "%CD%"=="%WORKSPACE_DIR%" (
 )
 
 REM =====================================================
+REM Enter workspace explicitly
+REM =====================================================
+pushd "%WORKSPACE_DIR%"
+
+REM =====================================================
 REM Virtual environment
 REM =====================================================
 set "VENV_DIR=.venv"
@@ -33,10 +40,16 @@ set "VENV_DIR=.venv"
 if not exist "%VENV_DIR%\Scripts\activate.bat" (
   echo Virtual environment not found.
   echo Run scripts\bootstrap.cmd first.
+  popd
   exit /b 1
 )
 
 call "%VENV_DIR%\Scripts\activate.bat"
+if errorlevel 1 (
+  echo ERROR: Failed to activate virtual environment
+  popd
+  exit /b 1
+)
 
 REM =====================================================
 REM Extract versions
@@ -62,6 +75,11 @@ echo Type "exit" to leave.
 echo.
 
 REM =====================================================
-REM Enter interactive shell
+REM Enter interactive shell (stay in workspace)
 REM =====================================================
 cmd /k
+
+REM =====================================================
+REM Cleanup on exit
+REM =====================================================
+popd
