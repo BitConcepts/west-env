@@ -1,12 +1,19 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
+
+REM =====================================================
+REM Configuration
+REM =====================================================
+set PYTHON_MIN_MINOR=10
+set PYTHON_MAX_MINOR=12
 
 REM =====================================================
 REM Resolve script directory and workspace root
 REM =====================================================
-set "SCRIPT_DIR=%~dp0"
-if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
-for %%I in ("%SCRIPT_DIR%\..") do set "WORKSPACE_DIR=%%~fI"
+set SCRIPT_DIR=%~dp0
+set WORKSPACE_DIR=%SCRIPT_DIR%\..
+
+for %%I in ("%WORKSPACE_DIR%") do set WORKSPACE_DIR=%%~fI
 
 REM =====================================================
 REM Hard guards
@@ -27,52 +34,85 @@ if exist "%WORKSPACE_DIR%\pyproject.toml" (
   exit /b 1
 )
 
+REM =====================================================
+REM Python availability
+REM =====================================================
+where python >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: python not found in PATH
+  exit /b 1
+)
+
+REM =====================================================
+REM Python version check (Zephyr requirement)
+REM =====================================================
+for /f "tokens=2 delims= " %%V in ('python --version') do set PYVER=%%V
+for /f "tokens=1,2 delims=." %%A in ("%PYVER%") do (
+  set PYMAJOR=%%A
+  set PYMINOR=%%B
+)
+
+if not "%PYMAJOR%"=="3" (
+  echo ERROR: Unsupported Python version %PYVER%
+  echo Zephyr requires Python 3.%PYTHON_MIN_MINOR%-3.%PYTHON_MAX_MINOR%
+  exit /b 1
+)
+
+if %PYMINOR% LSS %PYTHON_MIN_MINOR% (
+  echo ERROR: Unsupported Python version %PYVER%
+  echo Zephyr requires Python 3.%PYTHON_MIN_MINOR%-3.%PYTHON_MAX_MINOR%
+  exit /b 1
+)
+
+if %PYMINOR% GTR %PYTHON_MAX_MINOR% (
+  echo ERROR: Unsupported Python version %PYVER%
+  echo Zephyr requires Python 3.%PYTHON_MIN_MINOR%-3.%PYTHON_MAX_MINOR%
+  echo Python 3.%PYTHON_MAX_MINOR%+ is not yet supported
+  exit /b 1
+)
+
 echo.
 echo === Bootstrapping west-env workspace ===
 echo Workspace root:
 echo   %WORKSPACE_DIR%
+echo Python version:
+echo   %PYVER%
 echo.
 
 REM =====================================================
-REM Python + venv
+REM Virtual environment
 REM =====================================================
-set "VENV_DIR=%WORKSPACE_DIR%\.venv"
-
-where python >nul 2>&1
-if errorlevel 1 (
-  echo ERROR: Python not found in PATH
-  exit /b 1
-)
+set VENV_DIR=%WORKSPACE_DIR%\.venv
 
 if not exist "%VENV_DIR%" (
   echo Creating virtual environment...
   python -m venv "%VENV_DIR%"
-  if errorlevel 1 exit /b 1
 )
 
 call "%VENV_DIR%\Scripts\activate.bat"
-if errorlevel 1 exit /b 1
 
 python -m pip install --upgrade pip
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+  echo ERROR: Failed to upgrade pip
+  exit /b 1
+)
 
 python -m pip install west
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+  echo ERROR: Failed to install west
+  exit /b 1
+)
 
 REM =====================================================
-REM WEST OPERATIONS (FORCED CWD)
+REM WEST OPERATIONS (forced CWD)
 REM =====================================================
-pushd "%WORKSPACE_DIR%"
-if errorlevel 1 exit /b 1
-
-echo DEBUG: west CWD is %CD%
+cd /d "%WORKSPACE_DIR%"
 
 if not exist ".west" (
   echo Initializing west workspace...
   python -m west init -l .
   if errorlevel 1 (
     echo ERROR: west init failed
-    popd
     exit /b 1
   )
 )
@@ -81,20 +121,38 @@ echo Updating workspace...
 python -m west update
 if errorlevel 1 (
   echo ERROR: west update failed
-  popd
   exit /b 1
 )
 
-python -m west list west-env >nul 2>&1
+python -m west list west-env >nul 2>nul
 if errorlevel 1 (
   echo ERROR: west-env project not found.
   echo The active manifest is not west.yml.
-  popd
   exit /b 1
 )
 
-popd
+REM =====================================================
+REM Install Zephyr Python dependencies
+REM =====================================================
+set ZEPHYR_REQS=%WORKSPACE_DIR%\..\zephyr\scripts\requirements.txt
 
+if not exist "%ZEPHYR_REQS%" (
+  echo ERROR: Zephyr requirements file not found:
+  echo   %ZEPHYR_REQS%
+  exit /b 1
+)
+
+echo.
+echo Installing Zephyr Python dependencies...
+pip install -r "%ZEPHYR_REQS%"
+if errorlevel 1 (
+  echo ERROR: Failed to install Zephyr Python dependencies
+  exit /b 1
+)
+
+REM =====================================================
+REM Done
+REM =====================================================
 echo.
 echo === Bootstrap complete ===
 echo Workspace:
