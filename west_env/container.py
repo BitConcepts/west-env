@@ -1,5 +1,7 @@
 from pathlib import Path
 import subprocess
+import os
+from west.util import west_topdir
 from west_env.engine import get_engine
 
 CONTAINER_WORKDIR = "/work"
@@ -12,15 +14,27 @@ def run_container(cfg, command, interactive=False):
         print("[WARN] Both Docker and Podman detected; using Docker")
         print("       Set engine explicitly in west-env.yml to silence this warning")
 
-    host_workdir = Path.cwd().resolve()
+    # 🔑 west workspace root (directory containing .west/)
+    host_topdir = Path(west_topdir()).resolve()
+
+    # current working directory (may be a subdir)
+    host_cwd = Path.cwd().resolve()
+
+    # compute relative path from workspace root → cwd
+    try:
+        rel_cwd = host_cwd.relative_to(host_topdir)
+        container_wd = f"{CONTAINER_WORKDIR}/{rel_cwd.as_posix()}"
+    except ValueError:
+        # cwd is the workspace root itself
+        container_wd = CONTAINER_WORKDIR
 
     args = [
         "run",
         "--rm",
         "-v",
-        f"{host_workdir}:{CONTAINER_WORKDIR}",
+        f"{host_topdir}:{CONTAINER_WORKDIR}",
         "-w",
-        CONTAINER_WORKDIR,
+        container_wd,
     ]
 
     if interactive:

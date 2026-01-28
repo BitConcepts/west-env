@@ -18,7 +18,7 @@ RUN apt-get update && \
         device-tree-compiler \
         wget \
         python3 \
-		python3-pip \
+        python3-pip \
         python3-dev \
         python3-venv \
         python3-tk \
@@ -33,7 +33,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------
-# Python tooling
+# Python tooling (system Python, no venv)
 # ------------------------------------------------------------
 RUN python3 -m pip install --no-cache-dir --upgrade pip && \
     python3 -m pip install --no-cache-dir west
@@ -52,6 +52,23 @@ RUN wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZE
 
 ENV ZEPHYR_TOOLCHAIN_VARIANT=zephyr
 ENV ZEPHYR_SDK_INSTALL_DIR=${ZEPHYR_SDK_INSTALL_DIR}
+
+# ------------------------------------------------------------
+# Zephyr Python requirements (AUTHORITATIVE)
+# ------------------------------------------------------------
+# We temporarily clone Zephyr only to install its Python deps,
+# then remove it to keep the image clean.
+#
+# This guarantees compatibility with Zephyr v4.3.0 and avoids
+# guessing missing dependencies (jsonschema, pyelftools, etc.).
+# ------------------------------------------------------------
+ARG ZEPHYR_VERSION=v4.3.0
+
+RUN git clone --depth 1 --branch ${ZEPHYR_VERSION} \
+        https://github.com/zephyrproject-rtos/zephyr.git /tmp/zephyr && \
+    python3 -m pip install --no-cache-dir \
+        -r /tmp/zephyr/scripts/requirements.txt && \
+    rm -rf /tmp/zephyr
 
 # ------------------------------------------------------------
 # Defaults

@@ -107,7 +107,7 @@ env:
   type: container
   container:
     engine: auto   # docker | podman | auto
-    image: ghcr.io/zephyrproject-rtos/sdk:0.17.0
+    image: ghcr.io/bitconcepts/zephyr-build-env:latest
 ```
 
 ---
@@ -140,7 +140,7 @@ west env doctor
 Pass additional arguments directly to `west build`:
 
 ```sh
-west env build -b nrf52840dk/nrf52840 samples/hello_world
+west env build -b nrf52840dk/nrf52840 ../zephyr/samples/hello_world
 ```
 
 ---
