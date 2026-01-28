@@ -155,7 +155,7 @@ class EnvCommand(WestCommand):
         """
         Verify the container can see a valid workspace at /work
         """
-        workspace = Path.cwd().resolve()
+        workspace = Path(west_topdir()).resolve()
 
         try:
             subprocess.check_output(
@@ -164,9 +164,9 @@ class EnvCommand(WestCommand):
                     "run",
                     "--rm",
                     "-v",
-                    f"{workspace.parent}:{CONTAINER_WORKDIR}",
+                    f"{workspace}:{CONTAINER_WORKDIR}",
                     "-w",
-                    f"{CONTAINER_WORKDIR}/{workspace.name}",
+                    CONTAINER_WORKDIR,
                     cfg.image,
                     "sh",
                     "-c",
@@ -181,3 +181,4 @@ class EnvCommand(WestCommand):
             print("       expected west.yml, .west/, modules/")
             print("       ensure you run west from the workspace root")
             return False
+

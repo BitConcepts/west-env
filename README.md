@@ -91,7 +91,7 @@ build/
 To explicitly force container execution regardless of configuration:
 
 ```sh
-west env build --container -b nrf52840dk/nrf52840 samples/hello_world
+west env build --container -b nrf52840dk/nrf52840 ../zephyr/samples/hello_world
 ```
 
 This is useful for CI validation or debugging container behavior.

@@ -1,7 +1,8 @@
 # west-env Container Image Contract
 
 This document defines the **required contract** for container images used by
-`west-env`.
+`west-env`, and explains how those images are used from **Windows** and
+**POSIX/Linux** hosts.
 
 Containers are an **implementation detail** used to provide a reproducible,
 portable build environment for Zephyr. They are not workspaces and must not
@@ -50,8 +51,13 @@ ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk
 
 ```
 
-The SDK version should be explicitly pinned and documented and must be compatible
-with the Zephyr version used by the workspace.
+The SDK version must be:
+
+* Explicitly pinned
+* Documented in the image
+* Compatible with the Zephyr version used by the workspace
+
+The container is the **sole owner** of the toolchain.
 
 ---
 
@@ -117,7 +123,7 @@ When `west-env` executes commands in a container:
 
 /work
 
-```
+````
 
 * The container working directory is set to the **same relative subdirectory**
   the user was in on the host.
@@ -130,7 +136,7 @@ This guarantees:
 
 ---
 
-## Separation of Responsibilities
+## Host vs Container Responsibilities
 
 | Concern              | Host                              | Container                         |
 |----------------------|-----------------------------------|-----------------------------------|
@@ -144,6 +150,86 @@ This separation is intentional and required.
 
 ---
 
+## Using the Container on Windows
+
+### Requirements
+
+* Docker Desktop (WSL2 backend recommended)
+* `west-env` installed in the workspace `.venv`
+* No requirement for Python, CMake, or SDK on the host
+
+### Key Rules (Windows)
+
+* **Never pass Windows paths** (`C:\...`) as Docker working directories
+* All paths are mounted by `west-env`
+* The container always works in `/work`
+
+### Typical Flow
+
+From the workspace root:
+
+```cmd
+scripts\bootstrap.cmd
+scripts\shell.cmd
+west env doctor
+west env build -b nrf52840dk/nrf52840 samples\hello_world
+````
+
+Notes:
+
+* The build runs inside the container automatically
+* No manual `docker run` is required
+* No container shell is required
+* Build output appears in the host workspace
+
+---
+
+## Using the Container on POSIX / Linux / macOS
+
+### Requirements
+
+* Docker or Podman
+* `west-env` installed in the workspace `.venv`
+
+### Typical Flow
+
+From the workspace root:
+
+```sh
+./scripts/bootstrap.sh   # if provided
+source .venv/bin/activate
+west env doctor
+west env build -b nrf52840dk/nrf52840 samples/hello_world
+```
+
+Notes:
+
+* Path translation is trivial on POSIX systems
+* Container execution is transparent
+* Relative paths behave identically to native builds
+
+---
+
+## Container Engine Selection
+
+The container engine is selected via `west-env.yml`:
+
+```yaml
+env:
+  type: container
+  container:
+    engine: auto
+    image: ghcr.io/bitconcepts/zephyr-build-env:latest
+```
+
+Behavior:
+
+* `auto` selects Docker or Podman if available
+* Engine detection failures are reported clearly
+* Missing images produce warnings, not crashes
+
+---
+
 ## Design Rationale
 
 This contract enforces:
@@ -152,6 +238,7 @@ This contract enforces:
 * Clear ownership of mutable state
 * Zero coupling between container images and workspace layout
 * Alignment with Zephyr and west mental models
+* Identical workflows on Windows and POSIX hosts
 
 The container provides **tools and dependencies only**.
 The workspace provides **source and state only**.
@@ -162,7 +249,7 @@ The workspace provides **source and state only**.
 
 If you remember only one rule:
 
-> **The container provides the environment.  
+> **The container provides the environment.
 > The workspace provides the project.**
 
 Anything else is a bug.
