@@ -15,26 +15,29 @@ from west_env.container import run_container, check_container, CONTAINER_WORKDIR
 from west_env.util import run_host, check_python, check_west
 
 
-def validate_workspace_root(path: Path):
+def validate_workspace_layout(workspace: Path):
     errors = []
 
-    if not (path / "west.yml").is_file():
-        errors.append("west.yml not found")
+    if not workspace.is_dir():
+        errors.append("workspace directory does not exist")
 
-    if not (path / ".west").is_dir():
-        errors.append(".west directory not found")
+    if not (workspace / "west.yml").is_file():
+        errors.append("west.yml not found in workspace")
 
-    if not (path / "modules").is_dir():
-        errors.append("modules directory not found")
+    if not (workspace / ".west").is_dir():
+        errors.append(".west directory not found (run bootstrap)")
+
+    if not (workspace / "modules").is_dir():
+        errors.append("modules directory not found (run west update)")
 
     if errors:
         msg = "\n".join(f"  - {e}" for e in errors)
         raise SystemExit(
-            "FATAL: invalid workspace root for container execution\n"
-            f"Path: {path}\n"
-            "Missing:\n"
+            "FATAL: invalid west workspace\n"
+            f"Workspace path: {workspace}\n"
+            "Problems:\n"
             f"{msg}\n\n"
-            "Hint: run west from the workspace root and mount it directly.\n"
+            "Hint: run scripts/bootstrap.sh from this workspace.\n"
         )
 
 
@@ -82,7 +85,8 @@ class EnvCommand(WestCommand):
         if args.action == "init":
             print("Initializing environment...")
             if use_container:
-                validate_workspace_root(Path.cwd())
+                workspace = Path.cwd().resolve()
+                validate_workspace_layout(workspace)
                 self._run_container(cfg, ["true"])
             else:
                 print("Native environment selected")
@@ -90,14 +94,16 @@ class EnvCommand(WestCommand):
         elif args.action == "build":
             cmd = ["west", "build"] + passthrough
             if use_container:
-                validate_workspace_root(Path.cwd())
+                workspace = Path.cwd().resolve()
+                validate_workspace_layout(workspace)
                 self._run_container(cfg, cmd)
             else:
                 run_host(cmd)
 
         elif args.action == "shell":
             if use_container:
-                validate_workspace_root(Path.cwd())
+                workspace = Path.cwd().resolve()
+                validate_workspace_layout(workspace)
                 self._run_container(cfg, ["/bin/bash"], interactive=True)
             else:
                 run_host(["bash"])
@@ -161,9 +167,9 @@ class EnvCommand(WestCommand):
                     "run",
                     "--rm",
                     "-v",
-                    f"{workspace}:{CONTAINER_WORKDIR}",
+                    f"{workspace.parent}:{CONTAINER_WORKDIR}",
                     "-w",
-                    CONTAINER_WORKDIR,
+                    f"{CONTAINER_WORKDIR}/{workspace.name}",
                     cfg.image,
                     "sh",
                     "-c",

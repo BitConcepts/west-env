@@ -11,22 +11,26 @@ def run_container(cfg, command, interactive=False):
 
     if warned:
         print("[WARN] Both Docker and Podman detected; using Docker")
-        print("       Set engine explicitly in west-env.yml to silence this warning")
 
-    host_topdir = Path(west_topdir()).resolve()
+    workspace = Path(west_topdir()).resolve()
+    mount_root = workspace.parent
+    workspace_name = workspace.name
+
+    container_workspace = f"{CONTAINER_WORKDIR}/{workspace_name}"
+
     host_cwd = Path.cwd().resolve()
 
     try:
-        rel_cwd = host_cwd.relative_to(host_topdir)
-        container_wd = f"{CONTAINER_WORKDIR}/{rel_cwd.as_posix()}"
+        rel = host_cwd.relative_to(workspace)
+        container_wd = f"{container_workspace}/{rel.as_posix()}"
     except ValueError:
-        container_wd = CONTAINER_WORKDIR
+        container_wd = container_workspace
 
     args = [
         "run",
         "--rm",
         "-v",
-        f"{host_topdir}:{CONTAINER_WORKDIR}",
+        f"{mount_root}:{CONTAINER_WORKDIR}",
         "-w",
         container_wd,
     ]
