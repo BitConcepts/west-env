@@ -3,6 +3,9 @@ name = "west-env"
 version = "0.1.0"
 description = "Reproducible build environments for Zephyr, with optional container-backed execution"
 requires-python = ">=3.10"
+dependencies = [
+    "west==1.5.0",
+]
 
 [project.entry-points."west.commands"]
 env = "west_commands.env:EnvCommand"

@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # west-env Container Image Contract
 
 This document defines the **required contract** for container images used by

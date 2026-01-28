@@ -1,10 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import subprocess
 import sys
 
 MIN_PYTHON = (3, 10)
 
+
 def run_host(cmd):
     subprocess.check_call(cmd)
+
 
 def check_python():
     version = sys.version_info
@@ -20,11 +24,12 @@ def check_python():
     )
     return True
 
+
 def check_west():
     try:
         subprocess.check_output(["west", "--version"])
         print("[PASS] west is installed")
         return True
-    except Exception:
+    except Exception:  # noqa
         print("[FAIL] west not found in PATH")
         return False

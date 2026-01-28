@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 from pathlib import Path
 import subprocess
 from west.util import west_topdir
@@ -15,7 +17,7 @@ def run_container(cfg, command, interactive=False):
     # Canonical west topdir (directory containing .west/)
     workspace = Path(west_topdir()).resolve()
 
-    # Host cwd (may be inside the workspace)
+    # Host cwd (perhaps inside the workspace)
     host_cwd = Path.cwd().resolve()
 
     try:
@@ -91,7 +93,7 @@ def check_container(cfg):
             stderr=subprocess.DEVNULL,
         )
         print(f"[PASS] container image available: {cfg.image}")
-    except Exception:
+    except Exception:  # noqa
         print(f"[WARN] container image not present locally: {cfg.image}")
         print("       it will be pulled on first use")
 

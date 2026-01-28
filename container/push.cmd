@@ -1,4 +1,5 @@
 @echo off
+REM SPDX-License-Identifier: Apache-2.0
 setlocal EnableExtensions EnableDelayedExpansion
 
 REM --------------------------------------------------

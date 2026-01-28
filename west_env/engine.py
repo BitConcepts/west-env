@@ -1,5 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import subprocess
 from shutil import which
+
 
 class ContainerEngine:
     def __init__(self, name):
@@ -8,8 +11,10 @@ class ContainerEngine:
     def run(self, args):
         subprocess.check_call([self.name] + args)
 
+
 def engine_available(name):
     return which(name) is not None
+
 
 def detect_engine(preferred=None):
     docker = engine_available("docker")
@@ -30,6 +35,7 @@ def detect_engine(preferred=None):
         return "podman", False
 
     raise RuntimeError("No supported container engine found")
+
 
 def get_engine(cfg_engine):
     name, warned = detect_engine(cfg_engine)

@@ -1,5 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import yaml
 from pathlib import Path
+
 
 class EnvConfig:
     def __init__(self, data):
@@ -8,6 +11,7 @@ class EnvConfig:
 
         self.image = self.container.get("image")
         self.engine = self.container.get("engine", "docker")
+
 
 def load_config():
     path = Path("west-env.yml")

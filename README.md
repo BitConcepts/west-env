@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # west-env
 
 `west-env` is a **west extension** that provides **reproducible build environments**
@@ -66,10 +68,10 @@ The `west-env` repository itself is **not** a workspace and must never contain:
 To demonstrate the correct layout and usage, a **copy-only reference workspace**
 is provided under `example/`.
 
-> ⚠️ Nothing under `example/` is meant to be executed in place.  
-> Always copy the example workspace to a new directory and work from there.
+Nothing under `example/` is meant to be executed in place.  
+Always copy the example workspace to a new directory and work from there.
 
-👉 **See [`example/README.md`](example/README.md) for authoritative, step-by-step
+**See [`example/README.md`](example/README.md) for authoritative, step-by-step
 workspace setup and build demonstration instructions.**
 
 ---

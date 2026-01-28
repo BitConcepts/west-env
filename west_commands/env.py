@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import sys
 from pathlib import Path
 import inspect
@@ -130,7 +132,8 @@ class EnvCommand(WestCommand):
         elif args.action == "doctor":
             self._doctor(cfg, use_container)
 
-    def _run_container(self, cfg, cmd, interactive=False):
+    @staticmethod
+    def _run_container(cfg, cmd, interactive=False):
         try:
             sig = inspect.signature(run_container)
             kwargs = {}
@@ -159,7 +162,8 @@ class EnvCommand(WestCommand):
         else:
             print("One or more checks failed ✖")
 
-    def _doctor_container_workspace(self, cfg):
+    @staticmethod
+    def _doctor_container_workspace(cfg):
         """
         Verify the container can see:
           - .west/ at /work (west topdir)
@@ -190,7 +194,7 @@ class EnvCommand(WestCommand):
             )
             print("[PASS] container workspace visibility")
             return True
-        except Exception:
+        except Exception:  # noqa
             print("[FAIL] container cannot see a valid workspace at /work")
             print("       expected .west/ and configured manifest file")
             print(f"       manifest: {manifest_rel}")
