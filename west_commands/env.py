@@ -2,17 +2,40 @@ import sys
 from pathlib import Path
 import inspect
 import argparse
+import subprocess
 
 # Ensure west-env repo root is on sys.path
-# (west loads extension modules under a synthetic namespace)
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from west.commands import WestCommand
 from west_env.config import load_config
-from west_env.container import run_container, check_container
+from west_env.container import run_container, check_container, CONTAINER_WORKDIR
 from west_env.util import run_host, check_python, check_west
+
+
+def validate_workspace_root(path: Path):
+    errors = []
+
+    if not (path / "west.yml").is_file():
+        errors.append("west.yml not found")
+
+    if not (path / ".west").is_dir():
+        errors.append(".west directory not found")
+
+    if not (path / "modules").is_dir():
+        errors.append("modules directory not found")
+
+    if errors:
+        msg = "\n".join(f"  - {e}" for e in errors)
+        raise SystemExit(
+            "FATAL: invalid workspace root for container execution\n"
+            f"Path: {path}\n"
+            "Missing:\n"
+            f"{msg}\n\n"
+            "Hint: run west from the workspace root and mount it directly.\n"
+        )
 
 
 class EnvCommand(WestCommand):
@@ -43,7 +66,6 @@ class EnvCommand(WestCommand):
             help="Force container execution",
         )
 
-        # Everything after the action is passed through verbatim
         parser.add_argument(
             "args",
             nargs=argparse.REMAINDER,
@@ -55,13 +77,12 @@ class EnvCommand(WestCommand):
     def do_run(self, args, unknown_args):
         cfg = load_config()
         use_container = args.container or cfg.env_type == "container"
-
         passthrough = list(args.args)
 
         if args.action == "init":
             print("Initializing environment...")
             if use_container:
-                # Lightweight container sanity check (pulls image on first use)
+                validate_workspace_root(Path.cwd())
                 self._run_container(cfg, ["true"])
             else:
                 print("Native environment selected")
@@ -69,15 +90,16 @@ class EnvCommand(WestCommand):
         elif args.action == "build":
             cmd = ["west", "build"] + passthrough
             if use_container:
+                validate_workspace_root(Path.cwd())
                 self._run_container(cfg, cmd)
             else:
                 run_host(cmd)
 
         elif args.action == "shell":
             if use_container:
+                validate_workspace_root(Path.cwd())
                 self._run_container(cfg, ["/bin/bash"], interactive=True)
             else:
-                # Native shell (minimal; platform-specific polish can come later)
                 run_host(["bash"])
 
         elif args.action == "doctor":
@@ -85,43 +107,27 @@ class EnvCommand(WestCommand):
 
     def _run_container(self, cfg, cmd, interactive=False):
         """
-        Wrapper around west_env.container.run_container.
-
-        On Windows hosts running Linux containers, Docker requires Linux container
-        paths for -w and the container-side mount. We standardize on /work.
+        Wrapper around run_container with stable /work semantics.
         """
-        container_workdir = "/work"
-
         try:
             sig = inspect.signature(run_container)
             kwargs = {}
 
-            # Optional parameters that container.py may support
             if "workdir" in sig.parameters:
-                kwargs["workdir"] = container_workdir
+                kwargs["workdir"] = CONTAINER_WORKDIR
             if "container_workdir" in sig.parameters:
-                kwargs["container_workdir"] = container_workdir
+                kwargs["container_workdir"] = CONTAINER_WORKDIR
             if "mount_target" in sig.parameters:
-                kwargs["mount_target"] = container_workdir
+                kwargs["mount_target"] = CONTAINER_WORKDIR
             if "container_mount" in sig.parameters:
-                kwargs["container_mount"] = container_workdir
-
+                kwargs["container_mount"] = CONTAINER_WORKDIR
             if "interactive" in sig.parameters:
                 kwargs["interactive"] = interactive
-                return run_container(cfg, cmd, **kwargs)
 
-            # Positional fallback
-            if len(sig.parameters) >= 3:
-                return run_container(cfg, cmd, interactive, **kwargs)
-
-            # Minimal signature fallback
             return run_container(cfg, cmd, **kwargs)
 
         except TypeError:
-            # Legacy fallback; container.py should eventually be updated
-            if interactive:
-                return run_container(cfg, cmd, interactive=True)
-            return run_container(cfg, cmd)
+            return run_container(cfg, cmd, interactive=interactive)
 
     def _doctor(self, cfg, use_container):
         print("west-env doctor\n")
@@ -132,6 +138,7 @@ class EnvCommand(WestCommand):
 
         if use_container:
             ok &= check_container(cfg)
+            ok &= self._doctor_container_workspace(cfg)
         else:
             print("[INFO] container execution disabled")
 
@@ -140,3 +147,34 @@ class EnvCommand(WestCommand):
             print("Environment looks good ✔")
         else:
             print("One or more checks failed ✖")
+
+    def _doctor_container_workspace(self, cfg):
+        """
+        Verify the container can see a valid workspace at /work
+        """
+        workspace = Path.cwd().resolve()
+
+        try:
+            subprocess.check_output(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "-v",
+                    f"{workspace}:{CONTAINER_WORKDIR}",
+                    "-w",
+                    CONTAINER_WORKDIR,
+                    cfg.image,
+                    "sh",
+                    "-c",
+                    "test -f west.yml && test -d .west && test -d modules",
+                ],
+                stderr=subprocess.DEVNULL,
+            )
+            print("[PASS] container workspace visibility")
+            return True
+        except Exception:
+            print("[FAIL] container cannot see a valid workspace at /work")
+            print("       expected west.yml, .west/, modules/")
+            print("       ensure you run west from the workspace root")
+            return False
