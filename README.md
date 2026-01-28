@@ -25,7 +25,12 @@ toolchains across developers and CI without modifying Zephyr itself.
 It must be used from within a **west workspace**.
 
 The `west-env` repository itself is **not** a workspace and must not be treated
-as one (no `.west/`, `zephyr/`, or build artifacts should appear in this repo).
+as one:
+
+* no `.west/`
+* no `zephyr/`
+* no `modules/`
+* no build artifacts
 
 To avoid confusion, a **copy-only reference workspace template** is provided
 under `example/`.
@@ -91,6 +96,8 @@ west env build --container -b nrf52840dk/nrf52840 samples/hello_world
 
 This is useful for CI validation or debugging container behavior.
 
+---
+
 ## Configuration
 
 Create a `west-env.yml` file in your workspace root:
@@ -101,7 +108,9 @@ env:
   container:
     engine: auto   # docker | podman | auto
     image: ghcr.io/zephyrproject-rtos/sdk:0.17.0
-````
+```
+
+---
 
 ### Container engine selection
 

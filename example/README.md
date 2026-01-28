@@ -34,13 +34,44 @@ example/
    ├─ west-env.yml
    └─ scripts/
       ├─ bootstrap.cmd
-      ├─ shell.cmd
+      └─ shell.cmd
 
-````
+```
 
 * `west.yml` and `west-env.yml` are **required**
 * Scripts assume they are run from the **workspace root**
 * Scripts will fail intentionally if run from an invalid location
+
+---
+
+## Important: west workspace structure (read this)
+
+A **west workspace root** is the directory where:
+
+* `.west/` will be created
+* `zephyr/` and `modules/` will be checked out
+* `west` commands must be run from
+
+For this example, **the workspace root is the directory you copy
+`example/workspace/` into**.
+
+Example (correct):
+
+```
+
+C:\work\west-env-ws\
+├─ west.yml
+├─ west-env.yml
+├─ scripts\
+├─ .west\
+├─ zephyr\
+└─ modules\
+   └─ west-env\
+
+````
+
+The `example/` directory inside the `west-env` repository is **not** a workspace
+and must never contain `.west/`, `zephyr/`, or `modules/`.
 
 ---
 
@@ -49,7 +80,7 @@ example/
 ### 1. Create an empty workspace directory
 
 Create a new directory that will become your west workspace.
-This directory must be outside the `west-env` repository.
+This directory must be **outside** the `west-env` repository.
 
 For example:
 
@@ -64,8 +95,8 @@ This directory will become your west workspace root.
 
 ### 2. Copy the example workspace template
 
-From a clone of the `west-env` repository, copy the **`example\workspace\`**
-directory into your new workspace directory.
+From a clone of the `west-env` repository, copy the **contents of
+`example\workspace\`** into your new workspace directory.
 
 For example, if `west-env` is cloned at `C:\src\west-env`:
 
@@ -86,7 +117,7 @@ west-env-ws/
 
 ### 3. Run bootstrap
 
-From the workspace root:
+From the **workspace root**:
 
 ```cmd
 scripts\bootstrap.cmd
@@ -100,7 +131,7 @@ This will:
 * fetch required projects
 * run `west update`
 
-The script will fail if:
+The script will fail intentionally if:
 
 * run from the wrong directory
 * run inside a git repository
