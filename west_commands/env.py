@@ -3,6 +3,7 @@ from pathlib import Path
 import inspect
 import argparse
 import subprocess
+import configparser
 
 # Ensure west-env repo root is on sys.path
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -16,25 +17,46 @@ from west_env.container import run_container, check_container, CONTAINER_WORKDIR
 from west_env.util import run_host, check_python, check_west
 
 
+def _read_west_manifest_location(topdir: Path) -> tuple[str, str]:
+    """
+    Return (manifest_path, manifest_file) from .west/config.
+
+    manifest_path is the directory which contains the manifest file,
+    relative to the west topdir (e.g. "workspace").
+    manifest_file is typically "west.yml".
+    """
+    cfg_path = topdir / ".west" / "config"
+    cp = configparser.ConfigParser()
+    cp.read(cfg_path)
+
+    # West stores this in [manifest] path=..., file=...
+    mpath = cp.get("manifest", "path", fallback=".")
+    mfile = cp.get("manifest", "file", fallback="west.yml")
+    return mpath, mfile
+
+
 def validate_workspace_layout():
-    workspace_root = Path(west_topdir()).resolve()
+    # NOTE: west_topdir() is the directory containing .west/
+    topdir = Path(west_topdir()).resolve()
     errors = []
 
-    if not (workspace_root / ".west").is_dir():
+    if not (topdir / ".west").is_dir():
         errors.append(".west directory not found")
 
-    if not (workspace_root / "modules").is_dir():
-        errors.append("modules directory not found")
-
-    # Manifest may live in a subdir — allow that
-    if not any(workspace_root.rglob("west.yml")):
-        errors.append("west.yml not found anywhere under workspace")
+    # Validate the configured manifest file exists (supports manifest in subdir)
+    try:
+        mpath, mfile = _read_west_manifest_location(topdir)
+        manifest = (topdir / mpath / mfile).resolve()
+        if not manifest.is_file():
+            errors.append(f"manifest not found at {manifest}")
+    except Exception as e:
+        errors.append(f"failed to read .west/config: {e}")
 
     if errors:
         msg = "\n".join(f"  - {e}" for e in errors)
         raise SystemExit(
             "FATAL: invalid west workspace\n"
-            f"Workspace root: {workspace_root}\n"
+            f"West topdir: {topdir}\n"
             "Problems:\n"
             f"{msg}\n\n"
             "Hint: ensure west init was run and the workspace is intact.\n"
@@ -109,26 +131,12 @@ class EnvCommand(WestCommand):
             self._doctor(cfg, use_container)
 
     def _run_container(self, cfg, cmd, interactive=False):
-        """
-        Wrapper around run_container with stable /work semantics.
-        """
         try:
             sig = inspect.signature(run_container)
             kwargs = {}
-
-            if "workdir" in sig.parameters:
-                kwargs["workdir"] = CONTAINER_WORKDIR
-            if "container_workdir" in sig.parameters:
-                kwargs["container_workdir"] = CONTAINER_WORKDIR
-            if "mount_target" in sig.parameters:
-                kwargs["mount_target"] = CONTAINER_WORKDIR
-            if "container_mount" in sig.parameters:
-                kwargs["container_mount"] = CONTAINER_WORKDIR
             if "interactive" in sig.parameters:
                 kwargs["interactive"] = interactive
-
             return run_container(cfg, cmd, **kwargs)
-
         except TypeError:
             return run_container(cfg, cmd, interactive=interactive)
 
@@ -153,9 +161,15 @@ class EnvCommand(WestCommand):
 
     def _doctor_container_workspace(self, cfg):
         """
-        Verify the container can see a valid workspace at /work
+        Verify the container can see:
+          - .west/ at /work (west topdir)
+          - the configured manifest file (often workspace/west.yml)
         """
-        workspace = Path(west_topdir()).resolve()
+        topdir = Path(west_topdir()).resolve()
+
+        # Compute manifest location from host .west/config, then check in-container
+        mpath, mfile = _read_west_manifest_location(topdir)
+        manifest_rel = f"{mpath.rstrip('/')}/{mfile}".lstrip("./")
 
         try:
             subprocess.check_output(
@@ -164,13 +178,13 @@ class EnvCommand(WestCommand):
                     "run",
                     "--rm",
                     "-v",
-                    f"{workspace}:{CONTAINER_WORKDIR}",
+                    f"{topdir}:{CONTAINER_WORKDIR}",
                     "-w",
                     CONTAINER_WORKDIR,
                     cfg.image,
                     "sh",
                     "-c",
-                    "test -f west.yml && test -d .west && test -d modules",
+                    f"test -d .west && test -f '{manifest_rel}'",
                 ],
                 stderr=subprocess.DEVNULL,
             )
@@ -178,7 +192,7 @@ class EnvCommand(WestCommand):
             return True
         except Exception:
             print("[FAIL] container cannot see a valid workspace at /work")
-            print("       expected west.yml, .west/, modules/")
+            print("       expected .west/ and configured manifest file")
+            print(f"       manifest: {manifest_rel}")
             print("       ensure you run west from the workspace root")
             return False
-
