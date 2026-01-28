@@ -242,13 +242,7 @@ What this does:
 
 ---
 
-Here’s the **corrected version of that section**, aligned with how `west-env` actually works and avoiding the misleading implication that flags alone are the primary switch.
-
-You can replace the section verbatim.
-
----
-
-### Building without the container
+### Building without the container (native builds)
 
 To build using the **native host environment**, update your workspace
 configuration to disable container execution.
@@ -258,21 +252,59 @@ In `west-env.yml`, set:
 ```yaml
 env:
   type: native
-````
+```
 
-With container mode disabled in configuration, builds will run directly on the
-host by default:
+With container mode disabled, `west env build` will invoke `west build`
+directly on the host:
 
 ```sh
 west env build -b nrf52840dk/nrf52840 ../zephyr/samples/hello_world
 ```
 
 This uses the same west workspace and build arguments, but executes entirely in
-the native host environment.
+the native environment.
 
-Note: The `--container` flag can still be used to temporarily override this
-configuration and force container execution when needed.
+#### Important notes about native builds
 
+* Native builds require **host-installed build tools**, including:
+
+  * CMake
+  * Ninja (or Make)
+  * a suitable compiler
+* For embedded targets (such as `nrf52840dk`), a **host-installed toolchain**
+  is also required (for example, the Zephyr SDK).
+
+These dependencies are **not managed by `west-env`** and must be provided by
+the host system. This mirrors standard Zephyr and west behavior.
+
+For detailed, platform-specific setup instructions, refer to the official
+Zephyr Getting Started guide:
+
+[https://docs.zephyrproject.org/latest/develop/getting_started/index.html](https://docs.zephyrproject.org/latest/develop/getting_started/index.html)
+
+Container-backed builds include a complete, known-good toolchain and are the
+recommended default for most users.
+
+#### Switching between native and container builds
+
+When switching a workspace between native and container-backed builds, the
+existing `build/` directory should be removed before rebuilding to avoid stale
+paths or cached toolchain settings:
+
+```sh
+rm -rf build/
+```
+
+#### Overriding configuration
+
+The `--container` flag can still be used to temporarily override the workspace
+configuration and force container execution when needed:
+
+```sh
+west env build --container -b nrf52840dk/nrf52840 ../zephyr/samples/hello_world
+```
+
+---
 
 ## Notes
 
