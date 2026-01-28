@@ -6,6 +6,9 @@ manifest:
     - name: zephyrproject
       url-base: https://github.com/zephyrproject-rtos
 
+  self:
+    path: .
+
   projects:
     - name: zephyr
       path: zephyr
