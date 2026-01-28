@@ -80,7 +80,7 @@ class EnvCommand(WestCommand):
     def do_run(self, args, unknown_args):
         cfg = load_config()
         use_container = args.container or cfg.env_type == "container"
-        passthrough = list(args.args)
+        passthrough = [a for a in args.args if a != "--container"]
 
         if args.action == "init":
             print("Initializing environment...")
