@@ -159,12 +159,6 @@ preferred and `west env doctor` will emit a warning.
 
 ---
 
-Here’s the **updated section you can drop straight into the main `README.md`**, expanding **west env usage fully**, including flags like `--container`, **without changing the overall structure or intent** of the document you already have.
-
-I’m giving you **only the parts that need to be added/replaced**, not a whole rewrite, so it’s easy to apply.
-
----
-
 ## Commands and Usage
 
 `west-env` adds a set of subcommands under `west env` that integrate directly
