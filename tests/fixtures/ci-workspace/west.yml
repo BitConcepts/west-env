@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# CI test fixture workspace manifest.
+#
+# Intentionally minimal: only fetches Zephyr itself (no `import: true`, no
+# HAL modules) to keep CI fast.  native_sim hello_world builds work without
+# HAL modules because native_sim uses the host toolchain and libc.
+#
+# Zephyr is placed at deps/zephyr (not zephyr/) to avoid a naming conflict
+# with any zephyr/ module-integration directory that might exist in the
+# repository root (zephyr/module.yml).  See the west-env README for details.
+
+manifest:
+  self:
+    path: workspace
+
+  defaults:
+    remote: zephyrproject
+
+  remotes:
+    - name: zephyrproject
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    - name: zephyr
+      path: deps/zephyr
+      revision: v4.1.0
+      # west-commands from Zephyr (flash, debug, etc.) are NOT imported here
+      # because we only need `west build` which is a west built-in.

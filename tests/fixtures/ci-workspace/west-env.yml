@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Native mode — no container required.  Used for CI builds on ubuntu-latest
+# where we validate west env doctor and a native_sim hello_world build.
+
+env:
+  type: native
