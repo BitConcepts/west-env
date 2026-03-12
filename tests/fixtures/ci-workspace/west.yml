@@ -25,5 +25,8 @@ manifest:
     - name: zephyr
       path: deps/zephyr
       revision: v4.1.0
-      # west-commands from Zephyr (flash, debug, etc.) are NOT imported here
-      # because we only need `west build` which is a west built-in.
+      # Register Zephyr's west extension commands (build, flash, boards, …).
+      # west build is NOT a west built-in — it is defined in Zephyr's
+      # scripts/west-commands.yml. Without this line `west build` is unknown.
+      # Using west-commands: instead of import: true avoids pulling all HALs.
+      west-commands: scripts/west-commands.yml
