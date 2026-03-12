@@ -352,15 +352,68 @@ Validated:
 
 * Docker Desktop on **Windows 11**
 * Docker running inside **WSL2**
+* Native Linux — via CI (`ubuntu-latest`)
 
 Not yet validated:
 
-* Native Linux (outside WSL2)
 * macOS
 * Podman (rootless or rootful)
 
 Podman support is **designed in** and expected to work, but has not been explicitly
 tested at this time.
+
+---
+
+## Testing and CI
+
+### Unit tests
+
+Install the test dependencies and run:
+
+```sh
+pip install -e ".[test]"
+pytest tests/unit/ -v
+```
+
+Unit tests cover `config`, `engine`, `util`, and `container` modules and include
+a regression test that `safe.directory` uses the `'*'` wildcard (see Known Issues
+below).  They run on Python 3.10–3.12 on Ubuntu, macOS, and Windows.
+
+### CI (GitHub Actions)
+
+Two jobs run on every push and pull request:
+
+* **unit-tests** — full matrix: Ubuntu / macOS / Windows × Python 3.10 / 3.11 / 3.12.
+* **native-sim-build** — end-to-end on `ubuntu-latest`: initialises a minimal west
+  workspace (Zephyr only, no HALs), runs `west env doctor`, builds the Zephyr
+  `hello_world` sample for `native_sim`, runs the resulting binary, and asserts it
+  prints `Hello World`.
+
+---
+
+## Known Issues / Troubleshooting
+
+### Zephyr path conflict: `zephyr/module.yml`
+
+If your repository contains a `zephyr/` directory used as a Zephyr module
+integration directory (i.e. it contains `zephyr/module.yml`), you **cannot** use
+`path: zephyr` for the Zephyr dependency in `west.yml` because the directory name
+conflicts.
+
+**Fix:** use a different path for the Zephyr project:
+
+```yaml
+projects:
+  - name: zephyr
+    path: deps/zephyr   # any name that doesn't conflict
+    revision: v4.1.0
+    import: true
+```
+
+`west-env` handles this automatically: the `safe.directory` git config inside the
+container uses the `'*'` wildcard to cover the entire workspace tree regardless of
+where Zephyr is placed.  A previous version hardcoded `/work/zephyr` which broke
+this case; that bug is fixed.
 
 ---
 

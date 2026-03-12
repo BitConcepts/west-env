@@ -22,7 +22,13 @@ def run_container(cfg, command, interactive=False):
 
     try:
         rel = host_cwd.relative_to(workspace)
-        container_wd = f"{CONTAINER_WORKDIR}/{rel.as_posix()}"
+        rel_posix = rel.as_posix()
+        # rel_posix is '.' when cwd equals the workspace root; avoid '/work/.'
+        container_wd = (
+            CONTAINER_WORKDIR
+            if rel_posix == "."
+            else f"{CONTAINER_WORKDIR}/{rel_posix}"
+        )
     except ValueError:
         container_wd = CONTAINER_WORKDIR
 
@@ -46,15 +52,22 @@ def run_container(cfg, command, interactive=False):
     # -------------------------------------------------
     # Git safety + command execution
     #
-    # Git >= 2.35 refuses to operate on mounted repos
-    # unless explicitly marked safe. If this step is
-    # missing, Zephyr west extension commands (build,
-    # flash, etc.) will NOT load.
+    # Git >= 2.35 refuses to operate on bind-mounted repos
+    # owned by a different uid (common in Docker) unless
+    # the directory is explicitly marked safe.
+    #
+    # We use the '*' wildcard to cover the entire workspace
+    # tree regardless of how the user has named and placed
+    # their Zephyr project path in west.yml.  A hardcoded
+    # path such as '/work/zephyr' breaks any project whose
+    # zephyr/ directory is already taken by a Zephyr module
+    # integration directory (zephyr/module.yml), forcing
+    # them to use an alternate path (e.g. deps/zephyr).
+    #
+    # Using '*' is intentional and safe: the container is
+    # already a trust boundary.
     # -------------------------------------------------
-    git_prep = (
-        "git config --global --add safe.directory /work && "
-        "git config --global --add safe.directory /work/zephyr"
-    )
+    git_prep = "git config --global safe.directory '*'"
 
     full_cmd = " ".join(command)
 
