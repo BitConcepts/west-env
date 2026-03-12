@@ -71,6 +71,10 @@ jobs:
       - name: Install west-env (this PR)
         run: pip install -e ".[test]"
 
+      # native_sim builds with -m32 and requires 32-bit glibc headers.
+      - name: Install 32-bit build dependencies (gcc-multilib)
+        run: sudo apt-get install -y --no-install-recommends gcc-multilib
+
       # Cache Zephyr source to avoid a full clone on every run.
       - name: Cache west modules
         id: cache-west
