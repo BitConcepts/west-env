@@ -107,7 +107,9 @@ class TestWorkspaceMount:
         args = _call_run_container(ws, cwd=ws)
         vol_idx = args.index("-v") + 1
         mount = args[vol_idx]
-        host_part, container_part = mount.split(":", 1)
+        # rsplit so Windows drive-letter paths (C:\foo:/work) are handled
+        # correctly: split on the LAST colon, not the first.
+        host_part, container_part = mount.rsplit(":", 1)
         assert container_part == CONTAINER_WORKDIR, (
             f"Expected mount target {CONTAINER_WORKDIR}, got {container_part}"
         )
