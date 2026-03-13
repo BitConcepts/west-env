@@ -12,6 +12,10 @@ class EnvConfig:
         self.image = self.container.get("image")
         self.engine = self.container.get("engine", "docker")
 
+        # Optional build directory (relative to west topdir)
+        build = data.get("env", {}).get("build", {})
+        self.build_dir = build.get("dir")  # e.g. "build"
+
 
 def load_config():
     path = Path("west-env.yml")

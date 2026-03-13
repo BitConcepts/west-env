@@ -115,6 +115,9 @@ class EnvCommand(WestCommand):
                 print("Native environment selected")
 
         elif args.action == "build":
+            passthrough = self._inject_build_dir(
+                cfg, passthrough, use_container
+            )
             cmd = ["west", "build"] + passthrough
             if use_container:
                 validate_workspace_layout()
@@ -131,6 +134,21 @@ class EnvCommand(WestCommand):
 
         elif args.action == "doctor":
             self._doctor(cfg, use_container)
+
+    @staticmethod
+    def _inject_build_dir(cfg, passthrough, use_container):
+        """Inject --build-dir from west-env.yml if not already specified."""
+        if not cfg.build_dir:
+            return passthrough
+        # Don't override an explicit user --build-dir / -d
+        for arg in passthrough:
+            if arg in ("--build-dir", "-d"):
+                return passthrough
+        if use_container:
+            bd = f"{CONTAINER_WORKDIR}/{cfg.build_dir}"
+        else:
+            bd = str(Path(west_topdir()).resolve() / cfg.build_dir)
+        return ["--build-dir", bd] + passthrough
 
     @staticmethod
     def _run_container(cfg, cmd, interactive=False):
