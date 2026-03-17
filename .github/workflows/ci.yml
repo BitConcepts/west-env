@@ -150,7 +150,9 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Validate hello_world output
         run: |
-          OUTPUT=$(/tmp/ci-ws/workspace/build/zephyr/zephyr.exe 2>&1 || true)
+          # native_sim runs the Zephyr kernel loop indefinitely; use timeout
+          # to capture early stdout then kill the process.
+          OUTPUT=$(timeout 10s /tmp/ci-ws/workspace/build/zephyr/zephyr.exe 2>&1 || true)
           echo "--- binary output ---"
           echo "$OUTPUT"
           echo "---------------------"
