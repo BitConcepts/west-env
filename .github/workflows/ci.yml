@@ -58,6 +58,7 @@ jobs:
   native-sim-build:
     name: native_sim hello_world (ubuntu-latest)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -100,7 +101,7 @@ jobs:
       - name: west update (Zephyr only — no HALs)
         if: steps.cache-west.outputs.cache-hit != 'true'
         working-directory: /tmp/ci-ws/workspace
-        run: west update
+        run: west update --narrow --fetch-opt=--depth=1
 
       # Always re-install Python requirements (cheap, idempotent).
       - name: Install Zephyr Python requirements
