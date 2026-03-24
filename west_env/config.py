@@ -12,6 +12,9 @@ class EnvConfig:
         self.image = self.container.get("image")
         self.engine = self.container.get("engine", "docker")
 
+        # "bind" (default) or "volume" (sync-build-extract for Windows perf)
+        self.sync_mode = self.container.get("sync_mode", "bind")
+
         # Optional build directory (relative to west topdir)
         build = data.get("env", {}).get("build", {})
         self.build_dir = build.get("dir")  # e.g. "build"
