@@ -1,13 +1,31 @@
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import subprocess
 import sys
+from shutil import which
 
 MIN_PYTHON = (3, 10)
 
 
 def run_host(cmd):
     subprocess.check_call(cmd)
+
+
+def host_shell_command():
+    if os.name == "nt":
+        for shell in ("pwsh", "powershell"):
+            path = which(shell)
+            if path:
+                return [path]
+
+        return [os.environ.get("COMSPEC", "cmd.exe")]
+
+    shell = os.environ.get("SHELL")
+    if shell:
+        return [shell]
+
+    return ["/bin/sh"]
 
 
 def check_python():

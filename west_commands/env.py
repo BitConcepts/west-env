@@ -2,8 +2,8 @@
 
 import sys
 from pathlib import Path
+import inspect
 import argparse
-import subprocess
 import configparser
 
 # Ensure west-env repo root is on sys.path
@@ -12,35 +12,39 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from west.commands import WestCommand
-from west.util import west_topdir
 from west_env.config import load_config
-from west_env.container import (
-    run_container,
-    run_container_volume,
-    extract_artifacts,
-    check_container,
-    CONTAINER_WORKDIR,
-)
-from west_env.engine import get_engine
-from west_env.util import run_host, check_python, check_west
+from west_env.container import check_container, check_container_workspace
+from west_env.container import run_container
+from west_env.util import check_python, check_west, host_shell_command
+from west_env.util import run_host
 
 
 def _read_west_manifest_location(topdir: Path) -> tuple[str, str]:
+    """
+    Return (manifest_path, manifest_file) from .west/config.
+
+    manifest_path is the directory which contains the manifest file,
+    relative to the west topdir (e.g. "workspace").
+    manifest_file is typically "west.yml".
+    """
     cfg_path = topdir / ".west" / "config"
     cp = configparser.ConfigParser()
     cp.read(cfg_path)
+
+    # West stores this in [manifest] path=..., file=...
     mpath = cp.get("manifest", "path", fallback=".")
     mfile = cp.get("manifest", "file", fallback="west.yml")
     return mpath, mfile
 
 
-def validate_workspace_layout():
-    topdir = Path(west_topdir()).resolve()
+def validate_workspace_layout(topdir):
+    topdir = Path(topdir).resolve()
     errors = []
 
     if not (topdir / ".west").is_dir():
         errors.append(".west directory not found")
 
+    # Validate the configured manifest file exists (supports manifest in subdir)
     try:
         mpath, mfile = _read_west_manifest_location(topdir)
         manifest = (topdir / mpath / mfile).resolve()
@@ -65,7 +69,8 @@ class EnvCommand(WestCommand):
         super().__init__(
             "env",
             "Manage reproducible build environments",
-            "init | build | shell | doctor",
+            "Manage reproducible build environments for west workspaces.",
+            accepts_unknown_args=True,
         )
 
     def do_add_parser(self, parser_adder):
@@ -74,6 +79,7 @@ class EnvCommand(WestCommand):
             add_help=True,
             allow_abbrev=False,
             help="Run west commands in native or container environments",
+            description=self.description,
         )
 
         parser.add_argument(
@@ -97,73 +103,48 @@ class EnvCommand(WestCommand):
         return parser
 
     def do_run(self, args, unknown_args):
-        cfg = load_config()
+        cfg = load_config(self.topdir)
         use_container = args.container or cfg.env_type == "container"
         passthrough = [a for a in args.args if a != "--container"]
-        use_volume = use_container and cfg.sync_mode == "volume"
+        passthrough.extend(a for a in unknown_args if a != "--container")
 
         if args.action == "init":
             print("Initializing environment...")
             if use_container:
-                validate_workspace_layout()
-                run_container(cfg, ["true"])
+                validate_workspace_layout(self.topdir)
+                self._run_container(cfg, ["true"])
             else:
                 print("Native environment selected")
 
         elif args.action == "build":
-            build_dir = self._extract_build_dir(passthrough)
-            passthrough = self._inject_build_dir(
-                cfg, passthrough, use_container
-            )
             cmd = ["west", "build"] + passthrough
-            if use_volume:
-                validate_workspace_layout()
-                run_container_volume(cfg, cmd, build_dir=build_dir)
-                if build_dir:
-                    extract_artifacts(cfg, build_dir)
-            elif use_container:
-                validate_workspace_layout()
-                run_container(cfg, cmd)
+            if use_container:
+                validate_workspace_layout(self.topdir)
+                self._run_container(cfg, cmd)
             else:
                 run_host(cmd)
 
         elif args.action == "shell":
-            if use_volume:
-                validate_workspace_layout()
-                print("NOTE: volume mode -- host edits require re-sync (exit and re-enter).")
-                run_container_volume(cfg, ["/bin/bash"], interactive=True)
-            elif use_container:
-                validate_workspace_layout()
-                run_container(cfg, ["/bin/bash"], interactive=True)
+            if use_container:
+                validate_workspace_layout(self.topdir)
+                self._run_container(cfg, ["/bin/sh"], interactive=True)
             else:
-                run_host(["bash"])
+                run_host(host_shell_command())
 
         elif args.action == "doctor":
             self._doctor(cfg, use_container)
 
     @staticmethod
-    def _extract_build_dir(passthrough):
-        for i, arg in enumerate(passthrough):
-            if arg in ("--build-dir", "-d") and i + 1 < len(passthrough):
-                return passthrough[i + 1]
-        return None
+    def _run_container(cfg, cmd, interactive=False):
+        try:
+            sig = inspect.signature(run_container)
+            kwargs = {}
+            if "interactive" in sig.parameters:
+                kwargs["interactive"] = interactive
+            return run_container(cfg, cmd, **kwargs)
+        except TypeError:
+            return run_container(cfg, cmd, interactive=interactive)
 
-    @staticmethod
-    def _inject_build_dir(cfg, passthrough, use_container):
-        if not cfg.build_dir:
-            return passthrough
-        for arg in passthrough:
-            if arg in ("--build-dir", "-d"):
-                return passthrough
-        if use_container:
-            bd = f"{CONTAINER_WORKDIR}/{cfg.build_dir}"
-        else:
-            bd = str(Path(west_topdir()).resolve() / cfg.build_dir)
-        return ["--build-dir", bd] + passthrough
-
-    # ---------------------------------------------------------------
-    # doctor
-    # ---------------------------------------------------------------
     def _doctor(self, cfg, use_container):
         print("west-env doctor\n")
 
@@ -172,78 +153,34 @@ class EnvCommand(WestCommand):
         ok &= check_west()
 
         if use_container:
-            engine_ok = check_container(cfg)
-            ok &= engine_ok
-
-            if engine_ok:
-                ok &= self._doctor_container_workspace(cfg)
-
-                if cfg.sync_mode == "volume":
-                    ok &= self._doctor_volume(cfg)
-
+            ok &= check_container(cfg)
+            ok &= self._doctor_container_workspace(cfg)
         else:
             print("[INFO] container execution disabled")
 
         print()
         if ok:
-            print("Environment looks good \u2714")
+            print("Environment looks good [OK]")
         else:
-            print("One or more checks failed \u2716")
+            print("One or more checks failed [FAIL]")
 
-    @staticmethod
-    def _doctor_volume(cfg):
-        try:
-            engine, _ = get_engine(cfg.engine)
-            subprocess.check_output(
-                [engine.name, "volume", "ls"],
-                stderr=subprocess.DEVNULL,
-            )
-            print("[PASS] volume management")
-            return True
-        except Exception:
-            print("[WARN] container engine cannot list volumes")
-            print("       ensure the Docker/Podman daemon is running")
-            return True  # non-fatal
+    def _doctor_container_workspace(self, cfg):
+        """
+        Verify the container can see:
+          - .west/ at /work (west topdir)
+          - the configured manifest file (often workspace/west.yml)
+        """
+        topdir = Path(self.topdir).resolve()
 
-    @staticmethod
-    def _doctor_container_workspace(cfg):
-        topdir = Path(west_topdir()).resolve()
+        # Compute manifest location from host .west/config, then check in-container
         mpath, mfile = _read_west_manifest_location(topdir)
         manifest_rel = f"{mpath.rstrip('/')}/{mfile}".lstrip("./")
 
-        engine, _ = get_engine(cfg.engine)
-
-        # Skip when image not yet pulled
         try:
-            subprocess.check_output(
-                [engine.name, "image", "inspect", cfg.image],
-                stderr=subprocess.DEVNULL,
-            )
-        except Exception:
-            print("[SKIP] container workspace visibility")
-            print("       image not present locally; will be checked on first use")
-            return True
-
-        try:
-            subprocess.check_output(
-                [
-                    engine.name,
-                    "run",
-                    "--rm",
-                    "-v",
-                    f"{topdir}:{CONTAINER_WORKDIR}",
-                    "-w",
-                    CONTAINER_WORKDIR,
-                    cfg.image,
-                    "sh",
-                    "-c",
-                    f"test -d .west && test -f '{manifest_rel}'",
-                ],
-                stderr=subprocess.DEVNULL,
-            )
+            check_container_workspace(cfg, topdir, manifest_rel)
             print("[PASS] container workspace visibility")
             return True
-        except Exception:
+        except Exception:  # noqa
             print("[FAIL] container cannot see a valid workspace at /work")
             print("       expected .west/ and configured manifest file")
             print(f"       manifest: {manifest_rel}")

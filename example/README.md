@@ -2,329 +2,131 @@
 
 # west-env Workspace Example
 
-This directory contains a **reference west workspace template** demonstrating
-how to use the `west-env` extension correctly.
+This directory contains a reference workspace template for `west-env`.
+Use it as a template, not as a live workspace inside this repository.
+Copy the contents of `example/workspace/` into a new directory and work there.
 
-The `west-env` repository itself is **not** a west workspace.
+## Key idea
 
-This example exists to show how a proper workspace should be structured.
+Operate in the copied workspace.
+Treat the `west-env` repository as extension source only.
 
-Nothing under `example/` is meant to be executed in place or modified.  
-Users are expected to **copy the example workspace** to a new location.
+That means:
 
----
+* this repository should stay free of `.west/`, `zephyr/`, `modules/`, `.venv/`, and build output
+* your copied workspace becomes the west topdir and manifest location
+* bootstrap, shell, doctor, and build commands should be run from that copied workspace root
 
-## What this example provides
+## Workspace layout
 
-* A minimal, correct west workspace layout
-* A pinned `west.yml` referencing Zephyr and `west-env`
-* A sample `west-env.yml` configuration
-* Helper scripts for:
-  * bootstrapping the workspace
-  * entering a workspace shell
-  * running `west-env` commands consistently
+Before bootstrap, your new workspace root should look like this:
 
-This layout mirrors how `west-env` is intended to be used in real projects and CI.
-
----
-
-## Workspace template layout
-
-```
-
-example/
-└─ workspace/
-   ├─ west.yml
-   ├─ west-env.yml
-   └─ scripts/
-      ├─ bootstrap.cmd
-      ├─ shell.cmd
-      ├─ bootstrap.sh
-      └─ shell.sh
-
-```
-
-* `west.yml` and `west-env.yml` are **required**
-* Scripts assume they are run from the **manifest directory**
-* Scripts will fail intentionally if run from an invalid location
-
----
-
-## Important: west workspace structure (read this)
-
-A **west workspace** consists of two related concepts:
-
-* the **west topdir** — the directory that contains `.west/`
-* the **manifest path** — the directory that contains `west.yml`
-
-These may be the same directory or separate directories, as configured by west.
-
-In this example:
-
-* the directory you create (e.g. `west-env-ws/`) becomes the **west topdir**
-* the copied `workspace/` directory contains the **manifest (`west.yml`)**
-* helper scripts are run from the manifest directory for convenience
-
-Example (correct):
-
-```
-
+```text
 west-env-ws/
-├─ .west/             ← west topdir
-├─ workspace/         ← manifest path
-│  ├─ west.yml
-│  ├─ west-env.yml
-│  └─ scripts/
-│     ├─ bootstrap.cmd
-│     ├─ shell.cmd
-│     ├─ bootstrap.sh
-│     └─ shell.sh
-├─ zephyr/
-└─ modules/
-└─ west-env/
-
-````
-
-Although scripts are run from `workspace/`, the **west topdir** is the parent
-directory (`west-env-ws/`), as determined by the presence of `.west/`.
-
-The `example/` directory inside the `west-env` repository is **not** a workspace
-and must never contain `.west/`, `zephyr/`, or `modules/`.
-
----
-
-## Creating a workspace from the example
-
-Follow the steps below for your platform.
- 
-The process is identical conceptually on Windows and POSIX systems.
-
----
-
-### Windows
-
-#### 1. Create an empty workspace directory
-
-Create a new directory that will become your west workspace.
-This directory must be **outside** the `west-env` repository.
-
-```cmd
-mkdir C:\work\west-env-ws
-cd C:\work\west-env-ws
-````
-
----
-
-#### 2. Copy the example workspace template
-
-From a clone of the `west-env` repository, copy the **contents of
-`example\workspace\`** into your new workspace directory.
-
-```cmd
-xcopy /E /I C:\src\west-env\example\workspace\* .
-```
-
-After copying, your **manifest directory** should contain:
-
-```
-workspace/
 ├─ west.yml
 ├─ west-env.yml
 └─ scripts/
+   ├─ bootstrap.cmd
+   ├─ bootstrap.sh
+   ├─ shell.cmd
+   └─ shell.sh
 ```
 
----
+After bootstrap and `west update`, it will typically look like this:
 
-#### 3. Run bootstrap
+```text
+west-env-ws/
+├─ .west/
+├─ .venv/
+├─ west.yml
+├─ west-env.yml
+├─ scripts/
+├─ zephyr/
+└─ modules/
+   └─ west-env/
+```
 
-From the **manifest directory** (`workspace/`):
+## Create a workspace
+
+### Windows
 
 ```cmd
+mkdir C:\work\west-env-ws
+xcopy /E /I C:\src\west-env\example\workspace\* C:\work\west-env-ws\
+cd /d C:\work\west-env-ws
 scripts\bootstrap.cmd
-```
-
-This will:
-
-* create a Python virtual environment (`.venv`)
-* install `west`
-* initialize the west workspace
-* fetch required projects
-* run `west update`
-
----
-
-#### 4. Enter the workspace shell
-
-```cmd
 scripts\shell.cmd
 ```
 
-You should see output similar to:
-
-```
-Python: vX.Y.Z
-West:   vA.B.C
-```
-
-You are now in the workspace shell with the correct environment active.
-
----
-
 ### POSIX / Linux / WSL2
 
-#### 1. Create an empty workspace directory
-
 ```sh
-mkdir ~/west-env-ws
+mkdir -p ~/west-env-ws
+cp -r /path/to/west-env/example/workspace/. ~/west-env-ws/
 cd ~/west-env-ws
-```
-
----
-
-#### 2. Copy the example workspace template
-
-```sh
-cp -r /path/to/west-env/example/workspace .
-```
-
----
-
-#### 3. Run bootstrap
-
-From the **manifest directory** (`workspace/`):
-
-```sh
 ./scripts/bootstrap.sh
-```
-
----
-
-#### 4. Enter the workspace shell
-
-```sh
 ./scripts/shell.sh
 ```
 
-You should now be in the workspace shell with the correct environment active.
+## What bootstrap does
 
----
+The bootstrap script is responsible for:
+
+* creating the workspace virtual environment
+* installing `west`
+* initializing the workspace if needed
+* running `west update`
+* installing Zephyr Python dependencies from the checked-out Zephyr tree
 
 ## Verify the environment
 
-From inside the workspace shell:
+From the workspace root or workspace shell:
 
 ```sh
 west env doctor
 ```
 
-All checks should pass before continuing.
+What `doctor` should confirm:
 
----
+* Python is available
+* `west` is installed
+* the selected container engine is available when container mode is enabled
+* the configured image exists locally or can be pulled later
+* the mounted workspace looks valid inside the container
 
-## Build demo: Zephyr `hello_world`
+## Build a sample
 
-This example workspace is set up to demonstrate a simple Zephyr build using
-`west-env`.
-
-The following command builds the standard **hello_world** sample from the Zephyr
-tree.
-
-From inside the workspace shell:
+Container-backed build:
 
 ```sh
-west env build -b nrf52840dk/nrf52840 ../zephyr/samples/hello_world
+west env build -b native_sim zephyr/samples/hello_world
 ```
 
-What this does:
-
-* runs `west build` via `west-env`
-* executes the build inside the configured container
-* builds the `hello_world` application for the Nordic nRF52840 DK
-* places build output in the local `build/` directory
-
----
-
-### Building without the container (native builds)
-
-To build using the **native host environment**, update your workspace
-configuration to disable container execution.
-
-In `west-env.yml`, set:
-
-```yaml
-env:
-  type: native
-```
-
-With container mode disabled, `west env build` will invoke `west build`
-directly on the host:
+Native build after changing `west-env.yml` to `env.type: native`:
 
 ```sh
-west env build -b nrf52840dk/nrf52840 ../zephyr/samples/hello_world
+west env build -b native_sim zephyr/samples/hello_world
 ```
 
-This uses the same west workspace and build arguments, but executes entirely in
-the native environment.
+If you switch between native and container builds, remove the old build
+directory first to avoid stale CMake cache paths.
 
-#### Important notes about native builds
+## Recommended first-time flow
 
-* Native builds require **host-installed build tools**, including:
+1. Copy `example/workspace/` into a new directory.
+2. Run the bootstrap script.
+3. Open the workspace shell.
+4. Run `west env doctor`.
+5. Build `zephyr/samples/hello_world` in the default mode.
+6. Switch modes only after deleting the previous `build/` directory.
 
-  * CMake
-  * Ninja (or Make)
-  * a suitable compiler
-* For embedded targets (such as `nrf52840dk`), a **host-installed toolchain**
-  is also required (for example, the Zephyr SDK).
+## Common mistakes
 
-These dependencies are **not managed by `west-env`** and must be provided by
-the host system. This mirrors standard Zephyr and west behavior.
+Avoid these:
 
-For detailed, platform-specific setup instructions, refer to the official
-Zephyr Getting Started guide:
-
-[https://docs.zephyrproject.org/latest/develop/getting_started/index.html](https://docs.zephyrproject.org/latest/develop/getting_started/index.html)
-
-Container-backed builds include a complete, known-good toolchain and are the
-recommended default for most users.
-
-#### Switching between native and container builds
-
-When switching a workspace between native and container-backed builds, the
-existing `build/` directory should be removed before rebuilding to avoid stale
-paths or cached toolchain settings:
-
-```sh
-rm -rf build/
-```
-
-#### Overriding configuration
-
-The `--container` flag can still be used to temporarily override the workspace
-configuration and force container execution when needed:
-
-```sh
-west env build --container -b nrf52840dk/nrf52840 ../zephyr/samples/hello_world
-```
-
----
-
-## Notes
-
-* The example workspace is intentionally minimal.
-* The workspace directory should **not** be a git repository.
-* The example is designed for demonstration and validation.
-* Container details are documented separately.
-
-See [`container/README.md`](../container/README.md) for container-specific
-information.
-
----
-
-## Summary
-
-If you remember only one rule:
-
-> **Copy `example/workspace/` into a new directory and work from there.**
-
-This example exists to make the correct usage obvious, reproducible, and aligned
-with standard west workflows.
+* running the example in place inside the `west-env` repository
+* copying `example/` instead of the contents of `example/workspace/`
+* creating `.west/` inside the extension repository
+* expecting the container image to contain the workspace
+* reusing a build directory after changing execution mode
+* treating the extension repository as if it were the actual project workspace

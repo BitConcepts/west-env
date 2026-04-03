@@ -134,19 +134,8 @@ if errorlevel 1 (
 
 REM =====================================================
 REM Install Zephyr Python dependencies
-REM Resolve path dynamically via west so it works with
-REM any zephyr project path in west.yml.
 REM =====================================================
-for /f "delims=" %%P in ('python -m west list zephyr -f "{abspath}" 2^>nul') do set "ZEPHYR_BASE=%%P"
-
-if not defined ZEPHYR_BASE (
-  echo.
-  echo NOTE: No 'zephyr' project found in manifest.
-  echo       Skipping Zephyr Python dependency install.
-  goto skip_zephyr_reqs
-)
-
-set ZEPHYR_REQS=%ZEPHYR_BASE%\scripts\requirements.txt
+set ZEPHYR_REQS=%WORKSPACE_DIR%\\zephyr\\scripts\\requirements.txt
 
 if not exist "%ZEPHYR_REQS%" (
   echo ERROR: Zephyr requirements file not found:
@@ -161,8 +150,6 @@ if errorlevel 1 (
   echo ERROR: Failed to install Zephyr Python dependencies
   exit /b 1
 )
-
-:skip_zephyr_reqs
 
 REM =====================================================
 REM Done

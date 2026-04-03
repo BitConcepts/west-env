@@ -7,7 +7,6 @@ set -eu
 # =====================================================
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 WORKSPACE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-WORKSPACE_PARENT="$(cd "$WORKSPACE_DIR/.." && pwd)"
 
 # =====================================================
 # Enforce execution from workspace root
@@ -40,23 +39,6 @@ fi
 # shellcheck source=/dev/null
 . "$VENV_DIR/bin/activate"
 
-# =====================================================
-# Ensure west-env module is importable
-# =====================================================
-WEST_ENV_MODULE_DIR="$WORKSPACE_PARENT/modules/west-env"
-
-if [ ! -d "$WEST_ENV_MODULE_DIR/west_env" ]; then
-  echo "ERROR: west-env module not found at:"
-  echo "  $WEST_ENV_MODULE_DIR"
-  echo
-  echo "Expected layout:"
-  echo "  example/"
-  echo "    modules/west-env/"
-  echo "    workspace/"
-  exit 1
-fi
-
-export PYTHONPATH="$WEST_ENV_MODULE_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
 # =====================================================
 # Extract versions

@@ -34,3 +34,6 @@ Thumbs.db
 
 # ---- Local config overrides ----
 west-env.local.yml
+
+# ---- Local Python tool artifacts ----
+uv.lock

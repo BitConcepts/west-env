@@ -122,30 +122,18 @@ fi
 
 # =====================================================
 # Install Zephyr Python dependencies (CRITICAL)
-#
-# Resolve the Zephyr project path dynamically via west
-# instead of assuming a hardcoded '../zephyr' path.
-# This works regardless of what path: value the user
-# chose for the zephyr project in west.yml.
 # =====================================================
-ZEPHYR_BASE=$(python -m west list zephyr -f '{abspath}' 2>/dev/null || true)
+ZEPHYR_REQS="$WORKSPACE_DIR/zephyr/scripts/requirements.txt"
 
-if [ -z "$ZEPHYR_BASE" ]; then
-  echo
-  echo "NOTE: No 'zephyr' project found in manifest."
-  echo "      Skipping Zephyr Python dependency install."
-  echo "      If your manifest includes Zephyr, check west.yml."
-else
-  ZEPHYR_REQS="$ZEPHYR_BASE/scripts/requirements.txt"
-  if [ ! -f "$ZEPHYR_REQS" ]; then
-    echo "ERROR: Zephyr requirements file not found:"
-    echo "  $ZEPHYR_REQS"
-    exit 1
-  fi
-  echo
-  echo "Installing Zephyr Python dependencies..."
-  python -m pip install -r "$ZEPHYR_REQS"
+if [ ! -f "$ZEPHYR_REQS" ]; then
+  echo "ERROR: Zephyr requirements file not found:"
+  echo "  $ZEPHYR_REQS"
+  exit 1
 fi
+
+echo
+echo "Installing Zephyr Python dependencies..."
+python -m pip install -r "$ZEPHYR_REQS"
 
 # =====================================================
 # Done

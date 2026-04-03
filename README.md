@@ -2,62 +2,44 @@
 
 # west-env
 
-`west-env` is a **west extension** that provides **reproducible build environments**
-for Zephyr projects.
+`west-env` is a workspace-first west extension for reproducible Zephyr build
+environments. It lets a standard west workspace run builds either directly on
+the host or inside a container, without changing Zephyr itself or replacing the
+standard `west build` workflow.
 
-It enables developers to build Zephyr applications using either:
+## Why this exists
 
-* a **native host environment**, or
-* a **container-backed environment** (Docker / Podman)
-
-—without modifying Zephyr itself or changing existing west workflows.
-
-Containers are treated strictly as an **implementation detail**: they provide a
-known-good toolchain and dependency set, while the west workspace, source code,
-and build artifacts remain fully host-owned and west-native.
-
-This repository is intended to support **community discussion**, **show-and-tell
-demonstrations**, and eventual **RFC-style design exploration** within the
-Zephyr Project (e.g. via the *Ideas* discussion category).
-
----
+Zephyr projects often need a reproducible toolchain story without forcing every
+developer and CI system to hand-maintain identical host environments.
+`west-env` keeps the west workspace as the source of truth and treats
+containers as an implementation detail for providing tools and dependencies.
 
 ## Features
 
-* Native or container-backed builds
-* Docker and Podman support (engine selectable)
-* Config-driven behavior (`west-env.yml`)
-* No Zephyr core changes required
-* Clean integration with standard west commands
-* Works across Windows, WSL2, Linux, macOS, and CI (see status below)
+* Native or container-backed execution
+* Docker and Podman engine selection
+* Manifest-local configuration via `west-env.yml`
+* Standard `west build` argument passthrough
+* Workspace-relative behavior that follows normal west expectations
+* A copyable reference workspace for onboarding and CI bootstrapping
+* Unit tests for config loading, engine selection, path handling, and shell selection
 
----
+## Quick start
 
-## What `west-env` Is (and Is Not)
+1. Copy `example/workspace/` into a new directory.
+2. Run the platform bootstrap script from that copied workspace root.
+3. Run `west env doctor`.
+4. Run `west env build ...`.
 
-### What it **is**
+If you are starting fresh, begin with [`example/README.md`](example/README.md).
+That copied workspace root is where you run bootstrap, doctor, shell, and build commands.
 
-* A **west extension**
-* A reproducible build environment mechanism
-* A thin orchestration layer over `west build`
-* A way to standardize toolchains without forking Zephyr
-* An experiment aligned with west and Zephyr mental models
+## Workspace model
 
-### What it is **not**
+`west-env` must be used from inside a valid west workspace.
+The repository itself is not a workspace.
 
-* A west workspace
-* A replacement for west
-* A Zephyr fork
-* A container abstraction users interact with directly
-* A build system of its own
-
----
-
-## Workspace Model (Required)
-
-`west-env` must be used **from within a west workspace**.
-
-The `west-env` repository itself is **not** a workspace and must never contain:
+This repository is not a workspace and must not contain:
 
 * `.west/`
 * `zephyr/`
@@ -65,357 +47,156 @@ The `west-env` repository itself is **not** a workspace and must never contain:
 * build output
 * virtual environments
 
-To demonstrate the correct layout and usage, a **copy-only reference workspace**
-is provided under `example/`.
+A copy-only reference workspace lives under `example/workspace/`.
+Copy the contents of that directory into a new workspace root and work there;
+do not execute the example in place inside this repository.
 
-Nothing under `example/` is meant to be executed in place.  
-Always copy the example workspace to a new directory and work from there.
+The intended relationship is:
 
-**See [`example/README.md`](example/README.md) for authoritative, step-by-step
-workspace setup and build demonstration instructions.**
+* this repository defines the extension
+* your copied workspace owns `.west/`, `zephyr/`, `modules/`, `.venv/`, and `build/`
+* the container image, if used, owns only tools and dependencies
 
----
+See [`example/README.md`](example/README.md) for the step-by-step setup flow.
 
-## Host Platforms and Performance
+## Documentation map
 
-### Windows (native)
+* [`example/README.md`](example/README.md): how to create and use a workspace
+* [`container/README.md`](container/README.md): container image contract and host/container responsibilities
 
-`west-env` works on native Windows. However, when using container-backed builds
-with Docker Desktop and a workspace located on the Windows filesystem
-(e.g. `C:\Users\...`), build performance will be **significantly slower**.
+## Configuration
 
-This is a known limitation of bind-mounting NTFS paths into Linux containers.
+`west-env` reads `west-env.yml` from the manifest directory.
 
-### WSL2 (recommended on Windows)
-
-For best performance on Windows:
-
-> **Use WSL2 and keep the workspace inside the WSL2 filesystem**
-> (e.g. `/home/user/...`, not `C:\...`).
-
-Benefits include:
-
-* Near-native Linux filesystem performance
-* Dramatically faster CMake and Ninja builds
-* Behavior identical to Linux and CI
-* Avoidance of Docker Desktop filesystem translation overhead
-
-### Linux (native)
-
-On native Linux systems, `west-env` runs as expected and performs optimally with
-container-backed builds.
-
-### macOS
-
-macOS is expected to work similarly to Linux when using Docker Desktop, but has
-not yet been explicitly validated (see status below).
-
----
-
-## Container Integration (High-Level)
-
-When container mode is enabled:
-
-* `west-env` transparently runs `west build` **inside a container**
-* the west workspace (topdir) is mounted into the container
-* the container provides:
-  * toolchain
-  * SDK
-  * build dependencies
-* all source code, workspace state, and build artifacts remain on the host
-
-The container image is treated as a **build artifact** that is pulled from a
-registry as needed, not something users interact with directly.
-
-**See [`container/README.md`](container/README.md) for the container contract,
-image expectations, and design constraints.**
-
----
-
-## Configuration (`west-env.yml`)
-
-Behavior is controlled via a `west-env.yml` file located alongside the manifest.
-
-Example (container-backed builds):
+Container-backed example:
 
 ```yaml
 env:
   type: container
   container:
-    engine: auto      # docker | podman | auto
+    engine: auto
     image: ghcr.io/bitconcepts/zephyr-build-env:latest
-````
+```
 
-Supported modes:
+Native example:
 
-* `type: native`
-  Run builds directly on the host.
+```yaml
+env:
+  type: native
+```
 
-* `type: container`
-  Run builds inside the configured container.
+Supported values:
 
-When `engine: auto` is selected and multiple engines are available, Docker is
-preferred and `west env doctor` will emit a warning.
+* `env.type: native`
+* `env.type: container`
+* `env.container.engine: auto | docker | podman`
 
----
+When `engine: auto` is used and both engines are present, Docker is preferred
+and `west env doctor` reports the selection.
 
-## Commands and Usage
+## Commands
 
-`west-env` adds a set of subcommands under `west env` that integrate directly
-with standard west workflows.
+`west-env` adds the following subcommands:
 
 ```sh
 west env init
-west env build [options] [west build args...]
-west env shell
+west env build [--container] [west build args...]
+west env shell [--container]
 west env doctor
-````
-
-All commands must be run from within a valid west workspace.
-
----
+```
 
 ### `west env init`
 
-```sh
-west env init
-```
+Validates the selected execution environment for the current workspace.
 
-Initializes the environment for the current workspace.
-
-Behavior depends on configuration:
-
-* In native mode, this is effectively a no-op
-* In container mode, this verifies container availability and workspace layout
-
-This command does **not** create a workspace and does not modify repository
-state. It assumes the workspace already exists and is valid.
-
----
+* In native mode this is effectively a no-op.
+* In container mode it verifies that the workspace layout is valid and that the
+  container can be started.
 
 ### `west env build`
 
+Runs `west build` natively or inside a container.
+All arguments after `build` are passed through to `west build`.
+
+Examples:
+
 ```sh
-west env build [--container] [west build arguments...]
+west env build -b native_sim zephyr/samples/hello_world
+west env build --container -b native_sim zephyr/samples/hello_world
 ```
 
-Runs `west build`, either natively or inside a container.
+If `west build` accepts an argument, `west env build` should pass it through.
 
-All arguments not recognized by `west env` are passed directly to
-`west build`.
-
-#### Common options
-
-* `--container`
-  Force container execution regardless of `west-env.yml` configuration.
-
-#### Example (container-backed build)
-
-```sh
-west env build --container -b nrf52840dk/nrf52840 ../zephyr/samples/hello_world
-```
-
-#### Example (native build)
-
-```sh
-west env build -b nrf52840dk/nrf52840 ../zephyr/samples/hello_world
-```
-
-Build output is written to the standard `build/` directory.
-
-### Switching between container and native builds
-
-When switching a workspace between **container-backed** and **native** builds,
-the existing build directory should be removed before rebuilding.
-
-Container and native builds may differ in:
-
-* absolute paths
-* toolchain locations
-* SDK layout
-* CMake cache contents
-
-Reusing a build directory created in one mode while building in the other can
-lead to confusing configuration errors or stale paths.
-
-Before switching modes, remove the build directory:
-
-```sh
-rm -rf build/
-````
-
-Then rerun the build using the desired mode.
-
-This behavior is consistent with standard `west build` and CMake expectations
-and is not specific to `west-env`.
-
----
+When switching between native and container execution, remove any existing
+build directory before rebuilding so CMake does not reuse stale cache paths.
 
 ### `west env shell`
 
-```sh
-west env shell [--container]
-```
-
-Opens an interactive shell:
-
-* in the host environment (default), or
-* inside the configured container when `--container` is specified or container
-  mode is enabled in `west-env.yml`.
-
-This is useful for debugging toolchains, inspecting the environment, or running
-manual build commands.
-
----
+Opens an interactive shell in the selected environment.
+Host shells follow the host platform, while container shells use `/bin/sh`.
 
 ### `west env doctor`
 
-```sh
-west env doctor
-```
+Checks Python, west, container engine availability, image availability, and
+whether the workspace is visible inside the selected container engine.
 
-Performs a series of environment checks, including:
+## Recommended first-run workflow
 
-* Python availability
-* west installation
-* container engine detection
-* container image availability
-* workspace visibility inside the container (when applicable)
+The recommended starting flow is:
 
-This command is intended to fail early and clearly when configuration or
-environment issues are detected.
+1. Create a new empty directory for a west workspace.
+2. Copy `example/workspace/` into that directory.
+3. Run the platform bootstrap script.
+4. Open the workspace shell.
+5. Run `west env doctor`.
+6. Build a known-good Zephyr sample.
 
----
+This keeps the extension repository clean while making the workspace layout
+obvious to both developers and CI.
 
-### Argument passthrough behavior (important)
+## Host platform notes
 
-`west env build` intentionally forwards **all unknown arguments** to
-`west build`.
+Container-backed builds work best on Linux and WSL2-backed Docker setups.
+On native Windows with Docker Desktop, mounting workspaces from the Windows
+filesystem is expected to be functional but slower than keeping the workspace
+inside WSL2.
 
-This includes, but is not limited to:
+macOS and Podman are supported by design, but should still be considered
+validation targets rather than fully proven environments until exercised in
+dedicated end-to-end testing.
 
-* `-b <board>`
-* `-p`, `--pristine`
-* build directory arguments
-* source directory arguments
+## Validation status
 
-If an argument accepted by `west build` is rejected by `west env build`,
-this is considered a bug.
+Currently covered in the repository:
 
----
+* unit tests for manifest-local config loading
+* unit tests for Docker-only, Podman-only, and auto engine selection
+* unit tests for workspace-relative container working-directory behavior
+* unit tests for Docker and Podman workspace checks
+* unit tests for Windows and POSIX host shell selection
 
-### Summary of flags
+See the test suite under `tests/`.
 
-| Flag          | Applies to   | Description                            |
-| ------------- | ------------ | -------------------------------------- |
-| `--container` | build, shell | Force execution inside a container     |
-| *(none)*      | all          | Use behavior defined in `west-env.yml` |
+## Validation roadmap
 
+Additional validation work should focus on real end-to-end runs, not just unit
+tests. The next important scenarios are:
 
-For a complete, end-to-end walkthrough (including bootstrapping and shells),
-refer to the example workspace documentation.
+* Docker on native Windows with a workspace on the Windows filesystem
+* Docker in WSL2 with a workspace in the Linux filesystem
+* Docker on native Linux
+* Podman on native Linux
+* Podman rootless behavior for mounted west workspaces
+* macOS with Docker Desktop
+* example workspace bootstrap and `west env doctor` from a clean checkout
+* at least one sample build in native mode and one in container mode
+* switching the same workspace from native to container and back
+* CI coverage that exercises at least one Docker job and one native job
 
-**See [`example/README.md`](example/README.md)**
+## Project status
 
----
-
-## Design Goals
-
-* Reproducibility over convenience
-* Explicit, debuggable behavior
-* Minimal surface area
-* No mutation of repository state
-* Clear separation of responsibilities:
-
-  * the workspace owns source and state
-  * the container owns tools and dependencies
-* Strong alignment with west and Zephyr concepts
-
----
-
-## Project Status
-
-This project is currently **experimental** and intended for:
-
-* prototyping
-* design discussion
-* show-and-tell demonstrations
-* CI experimentation
-* potential upstream RFC exploration
-
-APIs, behavior, and structure may evolve based on feedback from the
-Zephyr community.
-
-### Tested Environments
-
-Validated:
-
-* Docker Desktop on **Windows 11**
-* Docker running inside **WSL2**
-* Native Linux — via CI (`ubuntu-latest`)
-
-Not yet validated:
-
-* macOS
-* Podman (rootless or rootful)
-
-Podman support is **designed in** and expected to work, but has not been explicitly
-tested at this time.
-
----
-
-## Testing and CI
-
-### Unit tests
-
-Install the test dependencies and run:
-
-```sh
-pip install -e ".[test]"
-pytest tests/unit/ -v
-```
-
-Unit tests cover `config`, `engine`, `util`, and `container` modules and include
-a regression test that `safe.directory` uses the `'*'` wildcard (see Known Issues
-below).  They run on Python 3.10–3.12 on Ubuntu, macOS, and Windows.
-
-### CI (GitHub Actions)
-
-Two jobs run on every push and pull request:
-
-* **unit-tests** — full matrix: Ubuntu / macOS / Windows × Python 3.10 / 3.11 / 3.12.
-* **native-sim-build** — end-to-end on `ubuntu-latest`: initialises a minimal west
-  workspace (Zephyr only, no HALs), runs `west env doctor`, builds the Zephyr
-  `hello_world` sample for `native_sim`, runs the resulting binary, and asserts it
-  prints `Hello World`.
-
----
-
-## Known Issues / Troubleshooting
-
-### Zephyr path conflict: `zephyr/module.yml`
-
-If your repository contains a `zephyr/` directory used as a Zephyr module
-integration directory (i.e. it contains `zephyr/module.yml`), you **cannot** use
-`path: zephyr` for the Zephyr dependency in `west.yml` because the directory name
-conflicts.
-
-**Fix:** use a different path for the Zephyr project:
-
-```yaml
-projects:
-  - name: zephyr
-    path: deps/zephyr   # any name that doesn't conflict
-    revision: v4.1.0
-    import: true
-```
-
-`west-env` handles this automatically: the `safe.directory` git config inside the
-container uses the `'*'` wildcard to cover the entire workspace tree regardless of
-where Zephyr is placed.  A previous version hardcoded `/work/zephyr` which broke
-this case; that bug is fixed.
-
----
+This project is experimental and intended for design exploration, local
+development, CI experimentation, and upstream west/Zephyr discussion.
 
 ## License
 

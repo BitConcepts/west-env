@@ -1,10 +1,11 @@
 [project]
 name = "west-env"
 version = "0.1.0"
-description = "Reproducible build environments for Zephyr, with optional container-backed execution"
+description = "Workspace-first west extension for reproducible Zephyr build environments with optional container-backed execution"
 requires-python = ">=3.10"
 dependencies = [
-    "west==1.5.0",
+    "PyYAML>=6.0",
+    "west>=1.5.0",
 ]
 
 [project.entry-points."west.commands"]

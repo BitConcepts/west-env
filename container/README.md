@@ -2,217 +2,189 @@
 
 # west-env Container Image Contract
 
-This document defines the **required contract** for container images used by
-`west-env`, and explains how those images are used from **Windows** and
-**POSIX/Linux** hosts.
+This document defines the required contract for container images used by
+`west-env` and explains how those images relate to the west workspace on the
+host.
 
-Containers are an **implementation detail** used to provide a reproducible,
+Containers are an implementation detail used to provide a reproducible,
 portable build environment for Zephyr. They are not workspaces and must not
 contain project state.
 
 If an image violates this contract, `west-env` behavior is undefined.
 
----
+## One rule to remember
+
+The container provides the environment.
+The workspace provides the project.
 
 ## Purpose
 
 The container image exists to provide:
 
-* A consistent toolchain
-* A complete set of Zephyr build dependencies
-* A stable execution environment for CI and developers
+* a consistent toolchain
+* a complete set of Zephyr build dependencies
+* a stable execution environment for CI and developers
 
-The **workspace remains host-owned** and is mounted into the container at runtime.
+The workspace remains host-owned and is mounted into the container at runtime.
 
----
-
-## Responsibilities of the Container Image
+## Responsibilities of the container image
 
 ### 1. Base system and build tools
 
-The image **must include** all native build tools required by Zephyr, including:
+The image must include the native build tools required by Zephyr, including:
 
-* CMake (compatible with the target Zephyr version)
+* CMake
 * Ninja
-* GNU build tools (`gcc`, `make`, etc.)
+* GNU build tools such as `gcc` and `make`
 * Device Tree Compiler (`dtc`)
-* Common utilities (`git`, `wget`, `file`, etc.)
+* common utilities such as `git`, `wget`, and `file`
 
 These are infrastructure dependencies, not workspace concerns.
 
----
+### 2. Zephyr SDK or equivalent toolchain
 
-### 2. Zephyr SDK (toolchain)
+The image must include a compatible Zephyr SDK and expose it via:
 
-The image **must include** a compatible Zephyr SDK and expose it via:
-
-```
-
+```sh
 ZEPHYR_TOOLCHAIN_VARIANT=zephyr
 ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk
-
 ```
 
 The SDK version must be:
 
-* Explicitly pinned
-* Documented in the image
-* Compatible with the Zephyr version used by the workspace
+* explicitly pinned
+* documented in the image
+* compatible with the Zephyr version used by the workspace
 
-The container is the **sole owner** of the toolchain.
+The container is the sole owner of the toolchain.
 
----
+### 3. Python
 
-### 3. Python (system-wide, no virtual environment)
+The container uses system Python, not a Python virtual environment.
 
-The container uses **system Python**, not a Python virtual environment.
-
-The image **must include**:
+The image must include:
 
 * `python3`
 * `pip`
-* All Python dependencies required by the supported Zephyr version
+* all Python dependencies required by the supported Zephyr version
 
-The **authoritative source** of Python dependencies is:
+The authoritative source of Python dependencies is:
 
-```
-
+```text
 zephyr/scripts/requirements.txt
-
 ```
 
-To ensure correctness and avoid dependency drift, the image should:
+To avoid dependency drift, the image should:
 
-1. Temporarily clone the matching Zephyr version during image build
-2. Install Python dependencies from `scripts/requirements.txt`
-3. Remove the temporary clone
+1. temporarily clone the matching Zephyr version during image build
+2. install Python dependencies from `scripts/requirements.txt`
+3. remove the temporary clone
 
 Runtime installation of Python packages is not allowed.
 
----
-
 ### 4. `west`
 
-The image **must have `west` installed** system-wide and available on `PATH`.
-
+The image must have `west` installed system-wide and available on `PATH`.
 The installed version must meet or exceed the minimum version required by the
 target Zephyr release.
 
----
+## What the container must not do
 
-## What the Container Must NOT Do
+The container image must not:
 
-The container image **must not**:
-
-* Contain a west workspace
-* Contain `.west/`, `zephyr/`, or `modules/`
-* Permanently clone or pin Zephyr source
-* Create or activate a Python virtual environment
-* Modify, generate, or assume workspace layout
-* Persist build artifacts or mutable state
+* contain a west workspace
+* contain `.west/`, `zephyr/`, or `modules/`
+* permanently clone or pin Zephyr source
+* create or activate a Python virtual environment
+* modify, generate, or assume workspace layout
+* persist build artifacts or mutable state
 
 All workspace state is owned by the host and mounted into the container.
 
----
-
-## Workspace Mounting Rules
+## Workspace mounting rules
 
 When `west-env` executes commands in a container:
 
-* The **west workspace root** (the directory containing `.west/`) is mounted to:
-
-```
-
-/work
-
-````
-
-* The container working directory is set to the **same relative subdirectory**
-  the user was in on the host.
+* the west workspace root, meaning the directory containing `.west/`, is mounted at `/work`
+* the container working directory is set to the same relative subdirectory the user was in on the host
 
 This guarantees:
 
 * `west build` always runs inside a valid workspace
-* Nested workspace layouts are supported
-* Relative paths behave identically on host and container
+* nested workspace layouts are supported
+* relative paths behave identically on host and container
 
----
+## Host responsibilities
 
-## Host vs Container Responsibilities
+The host owns:
 
-| Concern              | Host                              | Container                         |
-|----------------------|-----------------------------------|-----------------------------------|
-| Workspace state      | Owns `.west/`, `zephyr/`, modules | Never owns state                  |
-| Python environment   | `.venv` (user tools, west-env)    | System Python (build deps)        |
-| Zephyr source        | Managed via `west.yml`            | Mounted at runtime                |
-| Toolchain & SDK      | Not required                      | Fully provided                    |
-| Reproducibility      | Config-driven                     | Image-defined                     |
+* `.west/`
+* `west.yml`
+* `west-env.yml`
+* `.venv/`
+* `zephyr/`
+* `modules/`
+* source changes
+* build output
+
+## Container responsibilities
+
+The container owns:
+
+* system Python for build dependencies
+* `west`
+* the Zephyr SDK or other required toolchains
+* CMake, Ninja, `dtc`, Git, and other build tools
 
 This separation is intentional and required.
 
----
-
-## Using the Container on Windows
+## Using the container on Windows
 
 ### Requirements
 
-* Docker Desktop (WSL2 backend recommended)
+* Docker Desktop, preferably with a WSL2 backend
 * `west-env` installed in the workspace `.venv`
-* No requirement for Python, CMake, or SDK on the host
+* no requirement for Python, CMake, or SDK on the host when using container mode
 
-### Key Rules (Windows)
+### Key rules
 
-* **Never pass Windows paths** (`C:\...`) as Docker working directories
-* All paths are mounted by `west-env`
-* The container always works in `/work`
+* do not pass Windows paths as container working directories manually
+* let `west-env` handle mounting and working-directory selection
+* expect native Windows filesystem mounts to be slower than WSL2 filesystem mounts
 
-### Typical Flow
+### Typical flow
 
 From the workspace root:
 
 ```cmd
-scripts\bootstrap.cmd
-scripts\shell.cmd
+scripts\\bootstrap.cmd
+scripts\\shell.cmd
 west env doctor
-west env build -b nrf52840dk/nrf52840 samples\hello_world
-````
+west env build -b native_sim zephyr\\samples\\hello_world
+```
 
-Notes:
-
-* The build runs inside the container automatically
-* No manual `docker run` is required
-* No container shell is required
-* Build output appears in the host workspace
-
----
-
-## Using the Container on POSIX / Linux / macOS
+## Using the container on POSIX / Linux / macOS
 
 ### Requirements
 
 * Docker or Podman
 * `west-env` installed in the workspace `.venv`
 
-### Typical Flow
+### Typical flow
 
 From the workspace root:
 
 ```sh
-./scripts/bootstrap.sh   # if provided
+./scripts/bootstrap.sh
 source .venv/bin/activate
 west env doctor
-west env build -b nrf52840dk/nrf52840 samples/hello_world
+west env build -b native_sim zephyr/samples/hello_world
 ```
 
-Notes:
+On POSIX hosts, path translation is usually straightforward and container
+execution should closely mirror native workspace-relative behavior.
 
-* Path translation is trivial on POSIX systems
-* Container execution is transparent
-* Relative paths behave identically to native builds
-
----
-
-## Container Engine Selection
+## Container engine selection
 
 The container engine is selected via `west-env.yml`:
 
@@ -227,31 +199,31 @@ env:
 Behavior:
 
 * `auto` selects Docker or Podman if available
-* Engine detection failures are reported clearly
-* Missing images produce warnings, not crashes
+* Docker is preferred when both are available
+* engine detection failures are reported clearly
+* missing images produce warnings instead of fatal errors during doctor checks
 
----
+## Validation focus areas
 
-## Design Rationale
+The most important runtime validation scenarios for container-backed execution
+are:
+
+* Docker on Windows with a workspace on the Windows filesystem
+* Docker in WSL2 with a workspace in the Linux filesystem
+* Docker on native Linux
+* Podman on native Linux
+* Podman rootless workspace mounting behavior
+* at least one clean bootstrap + doctor + build flow per environment
+
+## Design rationale
 
 This contract enforces:
 
-* Reproducible builds across developers and CI
-* Clear ownership of mutable state
-* Zero coupling between container images and workspace layout
-* Alignment with Zephyr and west mental models
-* Identical workflows on Windows and POSIX hosts
+* reproducible builds across developers and CI
+* clear ownership of mutable state
+* zero coupling between container images and workspace layout
+* alignment with Zephyr and west mental models
+* identical workflows on Windows and POSIX hosts
 
-The container provides **tools and dependencies only**.
-The workspace provides **source and state only**.
-
----
-
-## Summary
-
-If you remember only one rule:
-
-> **The container provides the environment.
-> The workspace provides the project.**
-
-Anything else is a bug.
+The container provides tools and dependencies only.
+The workspace provides source and state only.

@@ -5,6 +5,6 @@ build:
   cmake: false
   kconfig: false
 description: >
-  West extension providing reproducible build environments for Zephyr,
-  supporting native and container-backed workflows without modifying
-  Zephyr core.
+  Workspace-first west extension providing reproducible build
+  environments for Zephyr, supporting native and container-backed
+  workflows without modifying Zephyr core.
