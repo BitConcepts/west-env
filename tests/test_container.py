@@ -49,7 +49,9 @@ class ContainerTests(unittest.TestCase):
                     host_cwd=host_cwd,
                 )
 
-        self.assertIn(f"{workspace}:/work", args)
+        # _container_args resolves workspace, so compare with resolved path
+        resolved_workspace = str(workspace.resolve())
+        self.assertIn(f"{resolved_workspace}:/work", args)
         self.assertEqual(args[args.index("-w") + 1], "/work/app with space")
         self.assertIn(
             "exec west build '../hello world'",
