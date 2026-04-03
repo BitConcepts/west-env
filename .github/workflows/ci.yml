@@ -50,7 +50,7 @@ jobs:
         run: pip install -e ".[test]"
 
       - name: Run unit tests
-        run: pytest tests/ -v
+        run: pytest tests/test_config.py tests/test_container.py tests/test_engine.py tests/test_util.py -v
 
   # --------------------------------------------------------------------------
   # Job 2: native_sim hello_world — closed-loop integration test

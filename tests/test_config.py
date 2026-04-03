@@ -32,10 +32,9 @@ class ConfigTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            self.assertEqual(
-                find_config_path(topdir),
-                manifest_dir / "west-env.yml",
-            )
+            result = find_config_path(topdir)
+            expected = manifest_dir / "west-env.yml"
+            self.assertEqual(result.resolve(), expected.resolve())
 
     def test_load_config_reads_manifest_local_file_not_cwd(self):
         with tempfile.TemporaryDirectory() as tmp:

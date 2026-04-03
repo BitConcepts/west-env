@@ -95,6 +95,9 @@ class BootstrapE2ETests(unittest.TestCase):
             r"""
             set -eu
 
+            # --- git safe.directory for mounted repo ---
+            git config --global --add safe.directory /repo
+
             # --- setup workspace ---
             mkdir -p /ws/scripts
             cp /repo/example/workspace/west-env.yml /ws/
