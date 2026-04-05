@@ -3,10 +3,10 @@
 This project was imported by specsmith. The governance files contain detected structure. Review and enrich with your agent.
 
 ## Project Summary
-- **Languages**: python, yaml
+- **Languages**: python, markdown, yaml
 - **Build system**: pyproject
 - **Test framework**: pytest
-- **Files detected**: 61
+- **Files detected**: 75
 - **Modules**: west_commands, west_env
 
 ## Workflow Rules

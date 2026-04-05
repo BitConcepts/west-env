@@ -3,15 +3,18 @@
 Architecture auto-generated from project detection.
 
 ## Overview
-- **Languages**: python, yaml
+- **Languages**: python, markdown, yaml
 - **Build system**: pyproject
 - **Test framework**: pytest
 
 ## Modules
-- **west_commands**: [Describe module purpose]
-- **west_env**: [Describe module purpose]
+- **west_commands**: [Describe module purpose] (see REQ-WEST_COMMANDS-001)
+- **west_env**: [Describe module purpose] (see REQ-WEST_ENV-001)
 
 ## Language Distribution
 - python: 17 files
-- yaml: 8 files
-- markdown: 3 files
+- markdown: 16 files
+- yaml: 9 files
+
+## Build
+- Build system: pyproject (see REQ-BUILD-001)
