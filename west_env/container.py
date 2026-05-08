@@ -103,10 +103,7 @@ def _container_args(
     # missing, Zephyr west extension commands (build,
     # flash, etc.) will NOT load.
     # -------------------------------------------------
-    git_prep = (
-        "git config --global --add safe.directory /work && "
-        "git config --global --add safe.directory /work/zephyr"
-    )
+    git_prep = "git config --global safe.directory '*'"
     full_cmd = shlex.join(command)
 
     args.append(cfg.image)
