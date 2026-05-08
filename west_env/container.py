@@ -22,6 +22,47 @@ def _container_workdir(workspace, host_cwd):
         return CONTAINER_WORKDIR
 
 
+def _edssharp_volumes(host_home: Path) -> list:
+    """Volume-mount args to expose host dotnet + CANopenEditor into container.
+
+    Mounted read-only under /root/ so the EDSSharp wrapper written by
+    _container_prep_cmd() can invoke dotnet on the mounted DLL.
+    Mounts are skipped silently when the paths don't exist on the host.
+    """
+    mounts = []
+    dotnet_dir = host_home / ".dotnet"
+    coed_dir   = host_home / ".local" / "tools" / "canopeneditor"
+    if dotnet_dir.is_dir():
+        mounts += ["-v", f"{dotnet_dir}:/root/.dotnet:ro"]
+    if coed_dir.is_dir():
+        mounts += ["-v", f"{coed_dir}:/root/.local/tools/canopeneditor:ro"]
+    return mounts
+
+
+def _container_prep_cmd() -> str:
+    """Shell commands run before the main build command inside the container.
+
+    1. Installs project-specific Python deps (canopennode requirements).
+    2. Writes /root/.local/bin/EDSSharp wrapper using the dotnet runtime and
+       CANopenEditor DLL bind-mounted from the host by _edssharp_volumes().
+       This lets CMake find_program(EDSSharp) succeed for OD.c/OD.h generation.
+    """
+    pip_cmd = (
+        "pip install --quiet --disable-pip-version-check "
+        "-r /work/external/zephyr/modules/canopennode/zephyr/requirements.txt "
+        "2>/dev/null || true"
+    )
+    edssharp_cmd = (
+        "mkdir -p /root/.local/bin && "
+        "_dll=$(find /root/.local/tools/canopeneditor -name 'EDSSharp.dll' 2>/dev/null | head -1) && "
+        "[ -n \"$_dll\" ] && "
+        "printf '#!/bin/sh\\nexport DOTNET_ROOT=/root/.dotnet\\nexport PATH=/root/.dotnet:/root/.local/bin:$PATH\\nexec dotnet \"%s\" \"$@\"\\n' \"$_dll\" "
+        "> /root/.local/bin/EDSSharp && "
+        "chmod +x /root/.local/bin/EDSSharp || true"
+    )
+    return f"{pip_cmd} && {edssharp_cmd}"
+
+
 def _container_args(
     cfg, command, interactive=False, workspace=None, host_cwd=None
 ):
@@ -47,7 +88,9 @@ def _container_args(
         f"{workspace}:{CONTAINER_WORKDIR}",
         "-w",
         container_wd,
-    ]
+        "-e",
+        "PYTHONPATH=/work/modules/west-env",
+    ] + _edssharp_volumes(Path.home())
 
     if interactive:
         args.extend(["-i", "-t"])
@@ -70,7 +113,7 @@ def _container_args(
     args.extend([
         "sh",
         "-c",
-        f"{git_prep} && exec {full_cmd}",
+        f"{git_prep} && {_container_prep_cmd()} && exec {full_cmd}",
     ])
     return engine, warned, args
 
