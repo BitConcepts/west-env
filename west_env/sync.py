@@ -48,6 +48,7 @@ def _warn_bind_on_windows(workspace_mode: str):
     """Print a performance warning if bind mode is used on Windows."""
     if workspace_mode == "bind" and sys.platform == "win32":
         import warnings
+
         warnings.warn(
             "[WARN] workspace_mode=bind on Windows mounts C:\\ paths into a Linux "
             "container. Build performance will be poor due to NTFS→Linux filesystem "
@@ -129,8 +130,10 @@ class WorkspaceSync:
         elif self.mode == "tmpfs":
             volume_name = f"west-env-ws-{_workspace_slug(host_workspace)}"
             return [
-                "-v", f"{volume_name}:/work",
-                "--mount", "type=tmpfs,destination=/work/build",
+                "-v",
+                f"{volume_name}:/work",
+                "--mount",
+                "type=tmpfs,destination=/work/build",
             ]
         else:
             raise ValueError(f"Unknown workspace mode: {self.mode!r}")
@@ -153,11 +156,16 @@ class WorkspaceSync:
         host_dst.mkdir(parents=True, exist_ok=True)
         # Extract artifact files from /work/build inside the volume
         extract_cmd = [
-            engine, "run", "--rm",
-            "-v", f"{volume_name}:/work",
-            "-v", f"{host_dst}:/output",
+            engine,
+            "run",
+            "--rm",
+            "-v",
+            f"{volume_name}:/work",
+            "-v",
+            f"{host_dst}:/output",
             "alpine",
-            "sh", "-c",
+            "sh",
+            "-c",
             "find /work/build -type f \\( "
             + " -o ".join(f"-name '*{ext}'" for ext in ARTIFACT_EXTENSIONS)
             + " \\) -exec cp --parents {} /output/ \\; 2>/dev/null || true",
@@ -183,6 +191,7 @@ class WorkspaceSync:
 # Helpers
 # ------------------------------------------------------------------
 
+
 def _workspace_slug(path: Path) -> str:
     """Return a short, filesystem-safe identifier for a workspace path."""
     return path.name.lower().replace(" ", "-").replace("\\", "-").replace("/", "-")[:40]
@@ -200,8 +209,7 @@ def _sync_via_tar_pipe(engine: str, src: Path, volume_name: str, excludes: list)
         stdout=subprocess.PIPE,
     )
     docker_proc = subprocess.Popen(
-        [engine, "run", "--rm", "-v", f"{volume_name}:/work", "-i", "alpine",
-         "tar", "-xf", "-", "-C", "/work"],
+        [engine, "run", "--rm", "-v", f"{volume_name}:/work", "-i", "alpine", "tar", "-xf", "-", "-C", "/work"],
         stdin=tar_proc.stdout,
     )
     tar_proc.stdout.close()

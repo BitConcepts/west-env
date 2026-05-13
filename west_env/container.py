@@ -11,6 +11,7 @@ CONTAINER_WORKDIR = "/work"
 
 def _west_topdir():
     from west.util import west_topdir
+
     return west_topdir()
 
 
@@ -22,9 +23,7 @@ def _container_workdir(workspace, host_cwd):
         return CONTAINER_WORKDIR
 
 
-def _container_args(
-    cfg, command, interactive=False, workspace=None, host_cwd=None
-):
+def _container_args(cfg, command, interactive=False, workspace=None, host_cwd=None):
     if not cfg.image:
         raise RuntimeError("no container image configured")
 
@@ -66,18 +65,18 @@ def _container_args(
     full_cmd = shlex.join(command)
 
     args.append(cfg.image)
-    args.extend([
-        "sh",
-        "-c",
-        f"{git_prep} && exec {full_cmd}",
-    ])
+    args.extend(
+        [
+            "sh",
+            "-c",
+            f"{git_prep} && exec {full_cmd}",
+        ]
+    )
     return engine, warned, args
 
 
 def run_container(cfg, command, interactive=False):
-    engine, warned, args = _container_args(
-        cfg, command, interactive=interactive
-    )
+    engine, warned, args = _container_args(cfg, command, interactive=interactive)
 
     if warned:
         print("[WARN] Both Docker and Podman detected; using Docker")

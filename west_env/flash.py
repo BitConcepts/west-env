@@ -73,6 +73,7 @@ def find_jlink_exe(name: str = "JLinkExe") -> Optional[Path]:
 # Flash
 # ---------------------------------------------------------------------------
 
+
 class FlashManager:
     """Manages J-Link host flashing and debug server."""
 
@@ -80,8 +81,7 @@ class FlashManager:
         self.mode = jlink_mode
         self.gdb_port = gdb_port
 
-    def flash(self, artifact: Path, device: str = "auto",
-              extra_args: Optional[list] = None):
+    def flash(self, artifact: Path, device: str = "auto", extra_args: Optional[list] = None):
         """Flash a firmware artifact using the host J-Link.
 
         Args:
@@ -93,8 +93,7 @@ class FlashManager:
         jlink = find_jlink_exe()
         if jlink is None:
             raise RuntimeError(
-                "J-Link host tools not found. "
-                "Install SEGGER J-Link from https://www.segger.com/downloads/jlink/"
+                "J-Link host tools not found. Install SEGGER J-Link from https://www.segger.com/downloads/jlink/"
             )
 
         artifact = Path(artifact)
@@ -143,17 +142,20 @@ class FlashManager:
         jlink_gdb = find_jlink_exe("JLinkGDBServerCL") or find_jlink_exe("JLinkGDBServer")
         if jlink_gdb is None:
             raise RuntimeError(
-                "J-Link GDB Server not found. "
-                "Install SEGGER J-Link from https://www.segger.com/downloads/jlink/"
+                "J-Link GDB Server not found. Install SEGGER J-Link from https://www.segger.com/downloads/jlink/"
             )
 
         _port = port or self.gdb_port
         cmd = [
             str(jlink_gdb),
-            "-device", device,
-            "-if", "SWD",
-            "-speed", "4000",
-            "-port", str(_port),
+            "-device",
+            device,
+            "-if",
+            "SWD",
+            "-speed",
+            "4000",
+            "-port",
+            str(_port),
             "-nogui",
         ]
         return subprocess.Popen(cmd)
@@ -162,6 +164,7 @@ class FlashManager:
 # ---------------------------------------------------------------------------
 # Doctor check
 # ---------------------------------------------------------------------------
+
 
 def doctor_lines(jlink_mode: str = "host") -> list:
     """Return doctor output lines for flash/debug readiness."""

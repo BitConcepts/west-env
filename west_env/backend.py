@@ -25,9 +25,11 @@ from typing import Optional
 # Data types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BackendProbe:
     """Result of probing a single backend."""
+
     name: str
     available: bool
     version: Optional[str] = None
@@ -38,6 +40,7 @@ class BackendProbe:
 # ---------------------------------------------------------------------------
 # Low-level probes  (all subprocess calls isolated here for easy mocking)
 # ---------------------------------------------------------------------------
+
 
 def _binary_version(cmd: str, version_flag: str = "version") -> Optional[str]:
     """Return first line of `cmd version_flag` output, or None if unavailable."""
@@ -114,16 +117,22 @@ def _docker_uses_wsl2() -> bool:
 # Per-backend probe functions
 # ---------------------------------------------------------------------------
 
+
 def _probe_podman_machine_hyperv() -> BackendProbe:
     ver = _binary_version("podman")
     if ver is None:
         return BackendProbe("podman-machine-hyperv", False, notes=["podman not found in PATH"])
     if not _hyperv_enabled():
-        return BackendProbe("podman-machine-hyperv", False, version=ver,
-                            notes=["Hyper-V not enabled — run as admin or enable via Windows Features"])
+        return BackendProbe(
+            "podman-machine-hyperv",
+            False,
+            version=ver,
+            notes=["Hyper-V not enabled — run as admin or enable via Windows Features"],
+        )
     if not _podman_machine_running():
-        return BackendProbe("podman-machine-hyperv", False, version=ver,
-                            notes=["No running Podman machine — run: podman machine start"])
+        return BackendProbe(
+            "podman-machine-hyperv", False, version=ver, notes=["No running Podman machine — run: podman machine start"]
+        )
     return BackendProbe("podman-machine-hyperv", True, version=ver)
 
 
@@ -132,13 +141,16 @@ def _probe_docker_desktop() -> BackendProbe:
     if ver is None:
         return BackendProbe("docker-desktop", False, notes=["docker not found in PATH"])
     if not _docker_uses_wsl2():
-        return BackendProbe("docker-desktop", False, version=ver,
-                            notes=["Docker found but does not appear to be Docker Desktop/WSL2"])
+        return BackendProbe(
+            "docker-desktop", False, version=ver, notes=["Docker found but does not appear to be Docker Desktop/WSL2"]
+        )
     return BackendProbe(
-        "docker-desktop", True, version=ver,
+        "docker-desktop",
+        True,
+        version=ver,
         warning="Docker Desktop (WSL2 bind mount) detected. "
-                "Build performance on C:\\ paths may be poor. "
-                "Consider Podman machine (Hyper-V) for better performance.",
+        "Build performance on C:\\ paths may be poor. "
+        "Consider Podman machine (Hyper-V) for better performance.",
     )
 
 
@@ -161,8 +173,9 @@ def _probe_podman_machine() -> BackendProbe:
     if ver is None:
         return BackendProbe("podman-machine", False, notes=["podman not found in PATH"])
     if not _podman_machine_running():
-        return BackendProbe("podman-machine", False, version=ver,
-                            notes=["No running Podman machine — run: podman machine start"])
+        return BackendProbe(
+            "podman-machine", False, version=ver, notes=["No running Podman machine — run: podman machine start"]
+        )
     return BackendProbe("podman-machine", True, version=ver)
 
 
@@ -176,6 +189,7 @@ def _probe_docker_machine() -> BackendProbe:
 # ---------------------------------------------------------------------------
 # Detection entry points
 # ---------------------------------------------------------------------------
+
 
 def detect_all(host_platform: Optional[str] = None) -> dict:
     """Probe all backends and return a dict keyed by backend name.
@@ -209,9 +223,9 @@ def detect_all(host_platform: Optional[str] = None) -> dict:
 
 # Fallback chains per platform
 _FALLBACK_CHAIN = {
-    "win32":  ["podman-machine-hyperv", "docker-desktop"],
+    "win32": ["podman-machine-hyperv", "docker-desktop"],
     "darwin": ["podman-machine", "docker-machine"],
-    "linux":  ["podman-native", "docker-native"],
+    "linux": ["podman-native", "docker-native"],
 }
 
 
@@ -250,8 +264,7 @@ def select(preferred: str = "auto", host_platform: Optional[str] = None):
                 raise RuntimeError(f"Unknown backend: {preferred!r}")
         if not probe.available:
             raise RuntimeError(
-                f"Requested backend {preferred!r} is not available: "
-                + "; ".join(probe.notes or ["unknown reason"])
+                f"Requested backend {preferred!r} is not available: " + "; ".join(probe.notes or ["unknown reason"])
             )
         if probe.warning:
             warnings.append(probe.warning)
@@ -283,10 +296,7 @@ def select(preferred: str = "auto", host_platform: Optional[str] = None):
         for note in probe.notes:
             warnings.append(f"Skipped {name}: {note}")
 
-    raise RuntimeError(
-        f"No supported container backend found on {plat}. "
-        "Install Docker or Podman and try again."
-    )
+    raise RuntimeError(f"No supported container backend found on {plat}. Install Docker or Podman and try again.")
 
 
 def doctor_lines(host_platform: Optional[str] = None) -> list:
@@ -320,6 +330,7 @@ def doctor_lines(host_platform: Optional[str] = None) -> list:
 # ---------------------------------------------------------------------------
 # Compatibility shim — keep engine-style interface for container.py
 # ---------------------------------------------------------------------------
+
 
 class ContainerBackend:
     """Thin wrapper that mimics ContainerEngine for use in container.py."""

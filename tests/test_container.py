@@ -107,15 +107,19 @@ class ContainerTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
-            with patch(
-                "west_env.container.get_engine",
-                return_value=(engine, False),
-            ), patch(
-                "west_env.container._west_topdir",
-                return_value=str(workspace),
-            ), patch(
-                "west_env.container.Path.cwd",
-                return_value=workspace,
+            with (
+                patch(
+                    "west_env.container.get_engine",
+                    return_value=(engine, False),
+                ),
+                patch(
+                    "west_env.container._west_topdir",
+                    return_value=str(workspace),
+                ),
+                patch(
+                    "west_env.container.Path.cwd",
+                    return_value=workspace,
+                ),
             ):
                 run_container(cfg, ["west", "build"])
 
@@ -138,10 +142,13 @@ class ContainerTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
-            with patch(
-                "west_env.container.get_engine",
-                return_value=(engine, False),
-            ), patch("subprocess.check_output") as check_output:
+            with (
+                patch(
+                    "west_env.container.get_engine",
+                    return_value=(engine, False),
+                ),
+                patch("subprocess.check_output") as check_output,
+            ):
                 check_container_workspace(cfg, workspace, "workspace/west.yml")
 
         invoked = check_output.call_args.args[0]
@@ -164,10 +171,13 @@ class ContainerTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
-            with patch(
-                "west_env.container.get_engine",
-                return_value=(engine, False),
-            ), patch("subprocess.check_output") as check_output:
+            with (
+                patch(
+                    "west_env.container.get_engine",
+                    return_value=(engine, False),
+                ),
+                patch("subprocess.check_output") as check_output,
+            ):
                 check_container_workspace(cfg, workspace, "west.yml")
 
         invoked = check_output.call_args.args[0]

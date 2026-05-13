@@ -201,7 +201,8 @@ class WestE2ETests(unittest.TestCase):
     def test_west_env_build_container_end_to_end(self):
         ensure_west_cli_test_image()
 
-        with tempfile.TemporaryDirectory(prefix="west-env-e2e-") as tmp:
+        # ignore_cleanup_errors: Docker may create root-owned __pycache__ files
+        with tempfile.TemporaryDirectory(prefix="west-env-e2e-", ignore_cleanup_errors=True) as tmp:
             root = Path(tmp)
             output_path = root / "west-build-output.json"
             make_workspace(

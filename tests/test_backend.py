@@ -33,9 +33,10 @@ class TestBinaryVersion(unittest.TestCase):
             self.assertIsNone(_binary_version("notaprogram"))
 
     def test_returns_first_line_of_output(self):
-        with patch("west_env.backend.which", return_value="/usr/bin/docker"), \
-             patch("west_env.backend.subprocess.check_output",
-                   return_value="Docker version 24.0.0\nsome other line\n"):
+        with (
+            patch("west_env.backend.which", return_value="/usr/bin/docker"),
+            patch("west_env.backend.subprocess.check_output", return_value="Docker version 24.0.0\nsome other line\n"),
+        ):
             result = _binary_version("docker")
             self.assertEqual(result, "Docker version 24.0.0")
 
@@ -74,24 +75,30 @@ class TestWindowsProbes(unittest.TestCase):
         self.assertIn("podman not found", probe.notes[0])
 
     def test_podman_machine_hyperv_not_available_no_hyperv(self):
-        with patch("west_env.backend._binary_version", return_value="podman 4.x"), \
-             patch("west_env.backend._hyperv_enabled", return_value=False):
+        with (
+            patch("west_env.backend._binary_version", return_value="podman 4.x"),
+            patch("west_env.backend._hyperv_enabled", return_value=False),
+        ):
             probe = _probe_podman_machine_hyperv()
         self.assertFalse(probe.available)
         self.assertTrue(any("Hyper-V" in n for n in probe.notes))
 
     def test_podman_machine_hyperv_not_available_no_machine(self):
-        with patch("west_env.backend._binary_version", return_value="podman 4.x"), \
-             patch("west_env.backend._hyperv_enabled", return_value=True), \
-             patch("west_env.backend._podman_machine_running", return_value=False):
+        with (
+            patch("west_env.backend._binary_version", return_value="podman 4.x"),
+            patch("west_env.backend._hyperv_enabled", return_value=True),
+            patch("west_env.backend._podman_machine_running", return_value=False),
+        ):
             probe = _probe_podman_machine_hyperv()
         self.assertFalse(probe.available)
         self.assertTrue(any("podman machine" in n for n in probe.notes))
 
     def test_podman_machine_hyperv_available(self):
-        with patch("west_env.backend._binary_version", return_value="podman 4.x"), \
-             patch("west_env.backend._hyperv_enabled", return_value=True), \
-             patch("west_env.backend._podman_machine_running", return_value=True):
+        with (
+            patch("west_env.backend._binary_version", return_value="podman 4.x"),
+            patch("west_env.backend._hyperv_enabled", return_value=True),
+            patch("west_env.backend._podman_machine_running", return_value=True),
+        ):
             probe = _probe_podman_machine_hyperv()
         self.assertTrue(probe.available)
         self.assertEqual(probe.name, "podman-machine-hyperv")
@@ -102,14 +109,18 @@ class TestWindowsProbes(unittest.TestCase):
         self.assertFalse(probe.available)
 
     def test_docker_desktop_not_wsl2(self):
-        with patch("west_env.backend._binary_version", return_value="Docker 24"), \
-             patch("west_env.backend._docker_uses_wsl2", return_value=False):
+        with (
+            patch("west_env.backend._binary_version", return_value="Docker 24"),
+            patch("west_env.backend._docker_uses_wsl2", return_value=False),
+        ):
             probe = _probe_docker_desktop()
         self.assertFalse(probe.available)
 
     def test_docker_desktop_available_issues_warning(self):
-        with patch("west_env.backend._binary_version", return_value="Docker 24"), \
-             patch("west_env.backend._docker_uses_wsl2", return_value=True):
+        with (
+            patch("west_env.backend._binary_version", return_value="Docker 24"),
+            patch("west_env.backend._docker_uses_wsl2", return_value=True),
+        ):
             probe = _probe_docker_desktop()
         self.assertTrue(probe.available)
         self.assertIsNotNone(probe.warning)
@@ -118,14 +129,18 @@ class TestWindowsProbes(unittest.TestCase):
 
 class TestMacOSProbes(unittest.TestCase):
     def test_podman_machine_requires_running_machine(self):
-        with patch("west_env.backend._binary_version", return_value="podman 4.x"), \
-             patch("west_env.backend._podman_machine_running", return_value=False):
+        with (
+            patch("west_env.backend._binary_version", return_value="podman 4.x"),
+            patch("west_env.backend._podman_machine_running", return_value=False),
+        ):
             probe = _probe_podman_machine()
         self.assertFalse(probe.available)
 
     def test_podman_machine_available(self):
-        with patch("west_env.backend._binary_version", return_value="podman 4.x"), \
-             patch("west_env.backend._podman_machine_running", return_value=True):
+        with (
+            patch("west_env.backend._binary_version", return_value="podman 4.x"),
+            patch("west_env.backend._podman_machine_running", return_value=True),
+        ):
             probe = _probe_podman_machine()
         self.assertTrue(probe.available)
 
@@ -137,28 +152,31 @@ class TestMacOSProbes(unittest.TestCase):
 
 class TestDetectAll(unittest.TestCase):
     def test_linux_probes_podman_and_docker(self):
-        with patch("west_env.backend._probe_podman_native",
-                   return_value=BackendProbe("podman-native", True, "v4")), \
-             patch("west_env.backend._probe_docker_native",
-                   return_value=BackendProbe("docker-native", True, "v24")):
+        with (
+            patch("west_env.backend._probe_podman_native", return_value=BackendProbe("podman-native", True, "v4")),
+            patch("west_env.backend._probe_docker_native", return_value=BackendProbe("docker-native", True, "v24")),
+        ):
             result = detect_all("linux")
         self.assertIn("podman-native", result)
         self.assertIn("docker-native", result)
 
     def test_win32_probes_hyperv_and_desktop(self):
-        with patch("west_env.backend._probe_podman_machine_hyperv",
-                   return_value=BackendProbe("podman-machine-hyperv", False)), \
-             patch("west_env.backend._probe_docker_desktop",
-                   return_value=BackendProbe("docker-desktop", True, "v24")):
+        with (
+            patch(
+                "west_env.backend._probe_podman_machine_hyperv",
+                return_value=BackendProbe("podman-machine-hyperv", False),
+            ),
+            patch("west_env.backend._probe_docker_desktop", return_value=BackendProbe("docker-desktop", True, "v24")),
+        ):
             result = detect_all("win32")
         self.assertIn("podman-machine-hyperv", result)
         self.assertIn("docker-desktop", result)
 
     def test_darwin_probes_podman_machine_and_docker(self):
-        with patch("west_env.backend._probe_podman_machine",
-                   return_value=BackendProbe("podman-machine", True, "v4")), \
-             patch("west_env.backend._probe_docker_machine",
-                   return_value=BackendProbe("docker-machine", True, "v24")):
+        with (
+            patch("west_env.backend._probe_podman_machine", return_value=BackendProbe("podman-machine", True, "v4")),
+            patch("west_env.backend._probe_docker_machine", return_value=BackendProbe("docker-machine", True, "v24")),
+        ):
             result = detect_all("darwin")
         self.assertIn("podman-machine", result)
         self.assertIn("docker-machine", result)
@@ -166,28 +184,37 @@ class TestDetectAll(unittest.TestCase):
 
 class TestSelect(unittest.TestCase):
     def test_auto_linux_prefers_podman_over_docker(self):
-        with patch("west_env.backend.detect_all", return_value={
-            "podman-native": BackendProbe("podman-native", True, "v4"),
-            "docker-native": BackendProbe("docker-native", True, "v24"),
-        }):
+        with patch(
+            "west_env.backend.detect_all",
+            return_value={
+                "podman-native": BackendProbe("podman-native", True, "v4"),
+                "docker-native": BackendProbe("docker-native", True, "v24"),
+            },
+        ):
             name, probe, warns = select("auto", "linux")
         self.assertEqual(name, "podman-native")
         self.assertEqual(warns, [])
 
     def test_auto_linux_falls_back_to_docker(self):
-        with patch("west_env.backend.detect_all", return_value={
-            "podman-native": BackendProbe("podman-native", False, notes=["not found"]),
-            "docker-native": BackendProbe("docker-native", True, "v24"),
-        }):
+        with patch(
+            "west_env.backend.detect_all",
+            return_value={
+                "podman-native": BackendProbe("podman-native", False, notes=["not found"]),
+                "docker-native": BackendProbe("docker-native", True, "v24"),
+            },
+        ):
             name, probe, warns = select("auto", "linux")
         self.assertEqual(name, "docker-native")
         self.assertIn("Skipped podman-native", warns[0])
 
     def test_auto_raises_when_none_available(self):
-        with patch("west_env.backend.detect_all", return_value={
-            "podman-native": BackendProbe("podman-native", False, notes=["not found"]),
-            "docker-native": BackendProbe("docker-native", False, notes=["not found"]),
-        }):
+        with patch(
+            "west_env.backend.detect_all",
+            return_value={
+                "podman-native": BackendProbe("podman-native", False, notes=["not found"]),
+                "docker-native": BackendProbe("docker-native", False, notes=["not found"]),
+            },
+        ):
             with self.assertRaises(RuntimeError):
                 select("auto", "linux")
 
@@ -198,30 +225,40 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(name, "podman-native")
 
     def test_explicit_preferred_raises_if_unavailable(self):
-        with patch("west_env.backend.detect_all", return_value={
-            "podman-native": BackendProbe("podman-native", False, notes=["not found"]),
-        }), patch("west_env.backend._probe_podman_native",
-                  return_value=BackendProbe("podman-native", False, notes=["not found"])):
+        with (
+            patch(
+                "west_env.backend.detect_all",
+                return_value={
+                    "podman-native": BackendProbe("podman-native", False, notes=["not found"]),
+                },
+            ),
+            patch(
+                "west_env.backend._probe_podman_native",
+                return_value=BackendProbe("podman-native", False, notes=["not found"]),
+            ),
+        ):
             with self.assertRaises(RuntimeError):
                 select("podman-native", "linux")
 
     def test_docker_desktop_warning_propagated(self):
-        probe = BackendProbe("docker-desktop", True, "v24",
-                             warning="performance warning")
-        with patch("west_env.backend.detect_all", return_value={"docker-desktop": probe}), \
-             patch("west_env.backend._FALLBACK_CHAIN",
-                   {"win32": ["docker-desktop"]}):
+        probe = BackendProbe("docker-desktop", True, "v24", warning="performance warning")
+        with (
+            patch("west_env.backend.detect_all", return_value={"docker-desktop": probe}),
+            patch("west_env.backend._FALLBACK_CHAIN", {"win32": ["docker-desktop"]}),
+        ):
             name, p, warns = select("auto", "win32")
         self.assertIn("performance warning", warns)
 
 
 class TestFallbackChainWin32(unittest.TestCase):
     def test_win32_prefers_podman_hyperv_over_docker_desktop(self):
-        with patch("west_env.backend.detect_all", return_value={
-            "podman-machine-hyperv": BackendProbe("podman-machine-hyperv", True, "v4"),
-            "docker-desktop": BackendProbe("docker-desktop", True, "v24",
-                                           warning="perf warn"),
-        }):
+        with patch(
+            "west_env.backend.detect_all",
+            return_value={
+                "podman-machine-hyperv": BackendProbe("podman-machine-hyperv", True, "v4"),
+                "docker-desktop": BackendProbe("docker-desktop", True, "v24", warning="perf warn"),
+            },
+        ):
             name, probe, warns = select("auto", "win32")
         self.assertEqual(name, "podman-machine-hyperv")
         self.assertEqual(warns, [])  # No warning when preferred backend works
@@ -247,21 +284,27 @@ class TestContainerBackend(unittest.TestCase):
 
 class TestDoctorLines(unittest.TestCase):
     def test_doctor_lines_pass_case(self):
-        with patch("west_env.backend.select",
-                   return_value=("podman-native",
-                                 BackendProbe("podman-native", True, "podman v4"),
-                                 [])), \
-             patch("west_env.backend.detect_all", return_value={
-                 "podman-native": BackendProbe("podman-native", True, "podman v4"),
-             }):
+        with (
+            patch(
+                "west_env.backend.select",
+                return_value=("podman-native", BackendProbe("podman-native", True, "podman v4"), []),
+            ),
+            patch(
+                "west_env.backend.detect_all",
+                return_value={
+                    "podman-native": BackendProbe("podman-native", True, "podman v4"),
+                },
+            ),
+        ):
             lines = doctor_lines("linux")
         self.assertTrue(any("backend selected: podman-native" in line for line in lines))
         self.assertTrue(any("PASS" in line for line in lines))
 
     def test_doctor_lines_fail_case(self):
-        with patch("west_env.backend.select",
-                   side_effect=RuntimeError("No backend found")), \
-             patch("west_env.backend.detect_all", return_value={}):
+        with (
+            patch("west_env.backend.select", side_effect=RuntimeError("No backend found")),
+            patch("west_env.backend.detect_all", return_value={}),
+        ):
             lines = doctor_lines("linux")
         self.assertTrue(any("FAIL" in line for line in lines))
 

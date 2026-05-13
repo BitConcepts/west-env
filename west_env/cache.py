@@ -21,10 +21,10 @@ from typing import Optional
 
 # Volume name templates
 _VOLUME_NAMES = {
-    "ccache":  "west-env-cache-ccache",
+    "ccache": "west-env-cache-ccache",
     "modules": "west-env-cache-modules",
-    "sdk":     "west-env-cache-sdk",
-    "pip":     "west-env-cache-pip",
+    "sdk": "west-env-cache-sdk",
+    "pip": "west-env-cache-pip",
 }
 
 
@@ -38,8 +38,7 @@ class CacheManager:
     # Volume args (to be injected into docker/podman run)
     # ------------------------------------------------------------------
 
-    def volume_args(self, ccache: bool = False, modules: bool = False,
-                    sdk: bool = False, pip: bool = False) -> list:
+    def volume_args(self, ccache: bool = False, modules: bool = False, sdk: bool = False, pip: bool = False) -> list:
         """Return `-v` mount args for the enabled caches."""
         args = []
         if ccache:
@@ -105,8 +104,7 @@ class CacheManager:
         elif which in _VOLUME_NAMES:
             targets = [_VOLUME_NAMES[which]]
         else:
-            raise ValueError(f"Unknown cache target: {which!r}. "
-                             f"Choose from: all, {', '.join(_VOLUME_NAMES)}")
+            raise ValueError(f"Unknown cache target: {which!r}. Choose from: all, {', '.join(_VOLUME_NAMES)}")
         for volume in targets:
             self._remove_volume(volume)
             print(f"[OK] removed cache volume: {volume}")
@@ -148,10 +146,19 @@ class CacheManager:
             return {}
         try:
             out = subprocess.check_output(
-                [self.engine, "run", "--rm",
-                 "-v", f"{_VOLUME_NAMES['ccache']}:/root/.cache/ccache",
-                 "-e", "CCACHE_DIR=/root/.cache/ccache",
-                 "alpine", "sh", "-c", "apk add --no-cache ccache -q && ccache -s 2>/dev/null"],
+                [
+                    self.engine,
+                    "run",
+                    "--rm",
+                    "-v",
+                    f"{_VOLUME_NAMES['ccache']}:/root/.cache/ccache",
+                    "-e",
+                    "CCACHE_DIR=/root/.cache/ccache",
+                    "alpine",
+                    "sh",
+                    "-c",
+                    "apk add --no-cache ccache -q && ccache -s 2>/dev/null",
+                ],
                 text=True,
                 stderr=subprocess.DEVNULL,
                 timeout=30,
@@ -179,10 +186,7 @@ class CacheManager:
                 stderr=subprocess.DEVNULL,
             )
         except subprocess.CalledProcessError as exc:
-            raise RuntimeError(
-                f"Failed to remove volume {name!r}. "
-                "Make sure no containers are using it."
-            ) from exc
+            raise RuntimeError(f"Failed to remove volume {name!r}. Make sure no containers are using it.") from exc
 
 
 def _parse_size(size_str: str) -> Optional[int]:
@@ -190,9 +194,9 @@ def _parse_size(size_str: str) -> Optional[int]:
     s = size_str.strip().upper()
     try:
         if s.endswith("GB"):
-            return int(float(s[:-2]) * 1024 ** 3)
+            return int(float(s[:-2]) * 1024**3)
         if s.endswith("MB"):
-            return int(float(s[:-2]) * 1024 ** 2)
+            return int(float(s[:-2]) * 1024**2)
         if s.endswith("KB"):
             return int(float(s[:-2]) * 1024)
         if s.endswith("B"):

@@ -28,29 +28,29 @@ from pathlib import Path
 
 # Wrapper file extensions per platform
 _EXT = {
-    "win32":  ".ps1",
+    "win32": ".ps1",
     "darwin": ".sh",
-    "linux":  ".sh",
+    "linux": ".sh",
 }
 
 # Shell invocation per platform
 _SHELL = {
-    "win32":  {"executable": "pwsh", "args": ["-NoProfile", "-File"]},
+    "win32": {"executable": "pwsh", "args": ["-NoProfile", "-File"]},
     "darwin": {"executable": "/bin/sh", "args": []},
-    "linux":  {"executable": "/bin/sh", "args": []},
+    "linux": {"executable": "/bin/sh", "args": []},
 }
 
 # Action definitions: (task_label, command_args, group, detail)
 _ACTIONS = [
-    ("west-env: setup",        ["setup"],                  "build",  "Initialize backend and workspace"),
-    ("west-env: sync",         ["sync"],                   "build",  "Sync source files to container/VM"),
-    ("west-env: build",        ["build"],                  "build",  "Build firmware in container"),
-    ("west-env: sync-back",    ["sync", "--back"],         "build",  "Sync artifacts back to host"),
-    ("west-env: flash",        ["flash"],                  None,     "Flash firmware with host J-Link"),
-    ("west-env: debug",        ["debug"],                  None,     "Start debug session"),
-    ("west-env: cache-stats",  ["cache", "stats"],         None,     "Show cache volume statistics"),
-    ("west-env: cache-reset",  ["cache", "reset"],         None,     "Reset all cache volumes"),
-    ("west-env: benchmark",    ["benchmark"],              None,     "Run benchmark build"),
+    ("west-env: setup", ["setup"], "build", "Initialize backend and workspace"),
+    ("west-env: sync", ["sync"], "build", "Sync source files to container/VM"),
+    ("west-env: build", ["build"], "build", "Build firmware in container"),
+    ("west-env: sync-back", ["sync", "--back"], "build", "Sync artifacts back to host"),
+    ("west-env: flash", ["flash"], None, "Flash firmware with host J-Link"),
+    ("west-env: debug", ["debug"], None, "Start debug session"),
+    ("west-env: cache-stats", ["cache", "stats"], None, "Show cache volume statistics"),
+    ("west-env: cache-reset", ["cache", "reset"], None, "Reset all cache volumes"),
+    ("west-env: benchmark", ["benchmark"], None, "Run benchmark build"),
 ]
 
 

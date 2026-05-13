@@ -9,6 +9,7 @@ import yaml
 
 def _west_topdir():
     from west.util import west_topdir
+
     return west_topdir()
 
 
@@ -64,7 +65,7 @@ class EnvConfig:
             self.backend = {
                 "docker": "docker-native",
                 "podman": "podman-native",
-                "auto":   "auto",
+                "auto": "auto",
             }.get(_old_engine, _old_engine)
 
         # workspace_mode: new field; default is platform-aware
@@ -101,9 +102,7 @@ class EnvConfig:
             raise ValueError(f"unsupported env.type: {self.env_type}")
 
         if _old_engine not in {"auto", "docker", "podman"}:
-            raise ValueError(
-                f"unsupported env.container.engine: {_old_engine}"
-            )
+            raise ValueError(f"unsupported env.container.engine: {_old_engine}")
 
         if self.backend not in _VALID_BACKENDS:
             raise ValueError(f"unsupported env.backend: {self.backend}")

@@ -70,8 +70,7 @@ class TestIsExcluded(unittest.TestCase):
 
 class TestCopyTree(unittest.TestCase):
     def test_copies_files_respecting_excludes(self):
-        with tempfile.TemporaryDirectory() as src_tmp, \
-             tempfile.TemporaryDirectory() as dst_tmp:
+        with tempfile.TemporaryDirectory() as src_tmp, tempfile.TemporaryDirectory() as dst_tmp:
             src = Path(src_tmp)
             dst = Path(dst_tmp)
 
@@ -87,8 +86,7 @@ class TestCopyTree(unittest.TestCase):
             self.assertFalse((dst / "build").exists())
 
     def test_copies_nested_directory(self):
-        with tempfile.TemporaryDirectory() as src_tmp, \
-             tempfile.TemporaryDirectory() as dst_tmp:
+        with tempfile.TemporaryDirectory() as src_tmp, tempfile.TemporaryDirectory() as dst_tmp:
             src = Path(src_tmp)
             dst = Path(dst_tmp)
 
@@ -165,8 +163,7 @@ class TestVolumeArgs(unittest.TestCase):
 class TestBindWarningOnWindows(unittest.TestCase):
     def test_emits_warning_on_windows(self):
         ws = WorkspaceSync("bind")
-        with patch("west_env.sync.sys.platform", "win32"), \
-             warnings.catch_warnings(record=True) as caught:
+        with patch("west_env.sync.sys.platform", "win32"), warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             ws.warn_if_needed()
         sync_warns = [w for w in caught if issubclass(w.category, SyncWarning)]
@@ -175,8 +172,7 @@ class TestBindWarningOnWindows(unittest.TestCase):
 
     def test_no_warning_on_linux(self):
         ws = WorkspaceSync("bind")
-        with patch("west_env.sync.sys.platform", "linux"), \
-             warnings.catch_warnings(record=True) as caught:
+        with patch("west_env.sync.sys.platform", "linux"), warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             ws.warn_if_needed()
         sync_warns = [w for w in caught if issubclass(w.category, SyncWarning)]
@@ -184,8 +180,7 @@ class TestBindWarningOnWindows(unittest.TestCase):
 
     def test_no_warning_for_sync_mode_on_windows(self):
         ws = WorkspaceSync("sync")
-        with patch("west_env.sync.sys.platform", "win32"), \
-             warnings.catch_warnings(record=True) as caught:
+        with patch("west_env.sync.sys.platform", "win32"), warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             ws.warn_if_needed()
         sync_warns = [w for w in caught if issubclass(w.category, SyncWarning)]

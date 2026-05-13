@@ -29,10 +29,10 @@ from west_env.cache import CacheManager, _parse_size, _VOLUME_NAMES
 
 class TestParseSize(unittest.TestCase):
     def test_parses_mb(self):
-        self.assertEqual(_parse_size("512MB"), 512 * 1024 ** 2)
+        self.assertEqual(_parse_size("512MB"), 512 * 1024**2)
 
     def test_parses_gb(self):
-        self.assertEqual(_parse_size("1.5GB"), int(1.5 * 1024 ** 3))
+        self.assertEqual(_parse_size("1.5GB"), int(1.5 * 1024**3))
 
     def test_parses_kb(self):
         self.assertEqual(_parse_size("100KB"), 100 * 1024)
@@ -78,16 +78,20 @@ class TestCacheReset(unittest.TestCase):
     def test_reset_all_calls_remove_for_each_volume(self):
         cm = CacheManager("docker")
         calls = []
-        with patch.object(cm, "_volume_exists", return_value=True), \
-             patch.object(cm, "_remove_volume", side_effect=lambda v: calls.append(v)):
+        with (
+            patch.object(cm, "_volume_exists", return_value=True),
+            patch.object(cm, "_remove_volume", side_effect=lambda v: calls.append(v)),
+        ):
             cm.reset("all")
         self.assertEqual(set(calls), set(_VOLUME_NAMES.values()))
 
     def test_reset_ccache_only_removes_ccache(self):
         cm = CacheManager("docker")
         calls = []
-        with patch.object(cm, "_volume_exists", return_value=True), \
-             patch.object(cm, "_remove_volume", side_effect=lambda v: calls.append(v)):
+        with (
+            patch.object(cm, "_volume_exists", return_value=True),
+            patch.object(cm, "_remove_volume", side_effect=lambda v: calls.append(v)),
+        ):
             cm.reset("ccache")
         self.assertEqual(calls, [_VOLUME_NAMES["ccache"]])
 
@@ -128,16 +132,18 @@ class TestDetectStrategy(unittest.TestCase):
         self.assertEqual(strategy, "openssh-agent")
 
     def test_auto_falls_back_to_credential_manager(self):
-        with patch("west_env.credentials._ssh_agent_socket", return_value=None), \
-             patch("west_env.credentials._git_credential_manager_installed",
-                   return_value=True):
+        with (
+            patch("west_env.credentials._ssh_agent_socket", return_value=None),
+            patch("west_env.credentials._git_credential_manager_installed", return_value=True),
+        ):
             strategy = detect_strategy("auto")
         self.assertEqual(strategy, "credential-manager")
 
     def test_auto_falls_back_to_none(self):
-        with patch("west_env.credentials._ssh_agent_socket", return_value=None), \
-             patch("west_env.credentials._git_credential_manager_installed",
-                   return_value=False):
+        with (
+            patch("west_env.credentials._ssh_agent_socket", return_value=None),
+            patch("west_env.credentials._git_credential_manager_installed", return_value=False),
+        ):
             strategy = detect_strategy("auto")
         self.assertEqual(strategy, "none")
 
@@ -153,8 +159,7 @@ class TestContainerArgs(unittest.TestCase):
 
     def test_openssh_agent_posix_returns_volume_and_env(self):
         with tempfile.NamedTemporaryFile() as f:
-            with patch("west_env.credentials.sys.platform", "linux"), \
-                 patch.dict(os.environ, {"SSH_AUTH_SOCK": f.name}):
+            with patch("west_env.credentials.sys.platform", "linux"), patch.dict(os.environ, {"SSH_AUTH_SOCK": f.name}):
                 args = container_args("openssh-agent")
         # Should have -v and -e args
         self.assertTrue(any("ssh-agent.sock" in a for a in args))
@@ -168,10 +173,10 @@ class TestDoctorLines(unittest.TestCase):
         self.assertTrue(any("WARN" in line or "none" in line for line in lines))
 
     def test_openssh_agent_shows_pass(self):
-        with patch("west_env.credentials.detect_strategy",
-                   return_value="openssh-agent"), \
-             patch("west_env.credentials._ssh_agent_socket",
-                   return_value="/tmp/agent.sock"):
+        with (
+            patch("west_env.credentials.detect_strategy", return_value="openssh-agent"),
+            patch("west_env.credentials._ssh_agent_socket", return_value="/tmp/agent.sock"),
+        ):
             lines = doctor_lines()
         self.assertTrue(any("PASS" in line for line in lines))
 
@@ -196,16 +201,14 @@ class TestGenerateTasks(unittest.TestCase):
             data = generate_tasks(Path(tmp), host_platform="win32")
         for task in data["tasks"]:
             cmd = task["command"]
-            self.assertTrue(cmd.endswith(".ps1"),
-                            f"Expected .ps1 extension, got: {cmd}")
+            self.assertTrue(cmd.endswith(".ps1"), f"Expected .ps1 extension, got: {cmd}")
 
     def test_linux_tasks_use_sh(self):
         with tempfile.TemporaryDirectory() as tmp:
             data = generate_tasks(Path(tmp), host_platform="linux")
         for task in data["tasks"]:
             cmd = task["command"]
-            self.assertTrue(cmd.endswith(".sh"),
-                            f"Expected .sh extension, got: {cmd}")
+            self.assertTrue(cmd.endswith(".sh"), f"Expected .sh extension, got: {cmd}")
 
     def test_macos_tasks_use_sh(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -229,15 +232,12 @@ class TestGenerateTasks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             data = generate_tasks(Path(tmp), host_platform="linux")
         for task in data["tasks"]:
-            self.assertEqual(task["type"], "shell",
-                             f"Task {task['label']} should use type=shell")
+            self.assertEqual(task["type"], "shell", f"Task {task['label']} should use type=shell")
 
     def test_build_task_is_marked_as_default_build(self):
         with tempfile.TemporaryDirectory() as tmp:
             data = generate_tasks(Path(tmp), host_platform="linux")
-        build_task = next(
-            (t for t in data["tasks"] if t["label"] == "west-env: build"), None
-        )
+        build_task = next((t for t in data["tasks"] if t["label"] == "west-env: build"), None)
         self.assertIsNotNone(build_task)
         self.assertEqual(build_task.get("group", {}).get("kind"), "build")
         self.assertTrue(build_task.get("group", {}).get("isDefault", False))
@@ -318,16 +318,14 @@ class TestGenerateWrappers(unittest.TestCase):
             scripts_dir = Path(tmp) / "scripts"
             created = generate_wrappers(scripts_dir, host_platform="linux")
             for p in created:
-                self.assertEqual(p.suffix, ".sh",
-                                 f"Expected .sh, got {p.suffix} for {p.name}")
+                self.assertEqual(p.suffix, ".sh", f"Expected .sh, got {p.suffix} for {p.name}")
 
     def test_generates_correct_extension_on_windows(self):
         with tempfile.TemporaryDirectory() as tmp:
             scripts_dir = Path(tmp) / "scripts"
             created = generate_wrappers(scripts_dir, host_platform="win32")
             for p in created:
-                self.assertEqual(p.suffix, ".ps1",
-                                 f"Expected .ps1, got {p.suffix} for {p.name}")
+                self.assertEqual(p.suffix, ".ps1", f"Expected .ps1, got {p.suffix} for {p.name}")
 
     def test_creates_all_actions(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -351,10 +349,7 @@ class TestGenerateWrappers(unittest.TestCase):
             created = generate_wrappers(scripts_dir, host_platform="linux")
             for p in created:
                 mode = p.stat().st_mode
-                self.assertTrue(
-                    mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH),
-                    f"{p.name} is not executable"
-                )
+                self.assertTrue(mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH), f"{p.name} is not executable")
 
     def test_ps1_content_does_not_reference_wsl(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -362,16 +357,13 @@ class TestGenerateWrappers(unittest.TestCase):
             created = generate_wrappers(scripts_dir, host_platform="win32")
             for p in created:
                 content = p.read_text(encoding="utf-8")
-                self.assertNotIn("wsl", content.lower(),
-                                 f"{p.name} contains 'wsl'")
-                self.assertNotIn("bash", content.lower(),
-                                 f"{p.name} contains 'bash'")
+                self.assertNotIn("wsl", content.lower(), f"{p.name} contains 'wsl'")
+                self.assertNotIn("bash", content.lower(), f"{p.name} contains 'bash'")
 
     def test_generate_subset_of_actions(self):
         with tempfile.TemporaryDirectory() as tmp:
             scripts_dir = Path(tmp) / "scripts"
-            created = generate_wrappers(scripts_dir, actions=["build", "sync"],
-                                        host_platform="linux")
+            created = generate_wrappers(scripts_dir, actions=["build", "sync"], host_platform="linux")
             self.assertEqual(len(created), 2)
 
 
@@ -398,8 +390,7 @@ class TestFindJlinkExe(unittest.TestCase):
 
 class TestFlashDoctorLines(unittest.TestCase):
     def test_pass_when_jlink_found(self):
-        with patch("west_env.flash.find_jlink_exe",
-                   return_value=Path("/usr/bin/JLinkExe")):
+        with patch("west_env.flash.find_jlink_exe", return_value=Path("/usr/bin/JLinkExe")):
             lines = flash_doctor("host")
         self.assertTrue(any("PASS" in line for line in lines))
 
@@ -423,8 +414,7 @@ class TestFlashManagerErrors(unittest.TestCase):
 
     def test_flash_raises_when_artifact_missing(self):
         fm = FlashManager()
-        with patch("west_env.flash.find_jlink_exe",
-                   return_value=Path("/usr/bin/JLinkExe")):
+        with patch("west_env.flash.find_jlink_exe", return_value=Path("/usr/bin/JLinkExe")):
             with self.assertRaises(FileNotFoundError):
                 fm.flash(Path("/nonexistent/fw.hex"))
 
@@ -439,12 +429,19 @@ class TestFlashManagerErrors(unittest.TestCase):
 # Benchmark output schema test
 # ===========================================================================
 
+
 class TestBenchmarkOutputSchema(unittest.TestCase):
     """Validate that a benchmark JSON result has all required fields."""
 
     REQUIRED_FIELDS = {
-        "timestamp", "machine", "os", "python",
-        "board", "backend", "workspace_mode", "elapsed_seconds",
+        "timestamp",
+        "machine",
+        "os",
+        "python",
+        "board",
+        "backend",
+        "workspace_mode",
+        "elapsed_seconds",
     }
 
     def test_benchmark_result_schema(self):

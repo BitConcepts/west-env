@@ -61,6 +61,7 @@ exec west env {action} "$@"
 # Generator
 # ---------------------------------------------------------------------------
 
+
 def get_extension(host_platform: str = None) -> str:
     """Return the wrapper script extension for the given platform."""
     plat = host_platform or sys.platform
@@ -95,7 +96,7 @@ def generate_wrappers(
     scripts_dir.mkdir(parents=True, exist_ok=True)
 
     created = []
-    for action in (actions or ACTIONS):
+    for action in actions or ACTIONS:
         filename = f"west-env-{action}{ext}"
         path = scripts_dir / filename
         content = generate_wrapper_content(action, plat)

@@ -175,7 +175,8 @@ class ModeSwitchTests(unittest.TestCase):
         Verifies that the workspace works correctly in both modes and that
         switching does not cause cross-contamination.
         """
-        with tempfile.TemporaryDirectory(prefix="west-env-switch-") as tmp:
+        # ignore_cleanup_errors: Docker may create root-owned __pycache__ files
+        with tempfile.TemporaryDirectory(prefix="west-env-switch-", ignore_cleanup_errors=True) as tmp:
             root = Path(tmp)
             output_path = root / "west-build-output.json"
 
@@ -222,7 +223,8 @@ class ModeSwitchTests(unittest.TestCase):
 
     def test_doctor_reports_correctly_after_mode_switch(self):
         """Doctor output changes appropriately when switching modes."""
-        with tempfile.TemporaryDirectory(prefix="west-env-switch-") as tmp:
+        # ignore_cleanup_errors: Docker may create root-owned __pycache__ files
+        with tempfile.TemporaryDirectory(prefix="west-env-switch-", ignore_cleanup_errors=True) as tmp:
             root = Path(tmp)
 
             # --- Native mode ---

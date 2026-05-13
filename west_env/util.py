@@ -31,15 +31,10 @@ def host_shell_command():
 def check_python():
     version = sys.version_info
     if version < MIN_PYTHON:
-        print(
-            f"[FAIL] Python {version.major}.{version.minor} "
-            f"(minimum required: {MIN_PYTHON[0]}.{MIN_PYTHON[1]})"
-        )
+        print(f"[FAIL] Python {version.major}.{version.minor} (minimum required: {MIN_PYTHON[0]}.{MIN_PYTHON[1]})")
         return False
 
-    print(
-        f"[PASS] Python {version.major}.{version.minor}.{version.micro}"
-    )
+    print(f"[PASS] Python {version.major}.{version.minor}.{version.micro}")
     return True
 
 

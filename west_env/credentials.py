@@ -22,6 +22,7 @@ from typing import Optional
 # Detection helpers
 # ---------------------------------------------------------------------------
 
+
 def _ssh_agent_socket() -> Optional[str]:
     """Return the SSH agent socket path if an agent is running, else None."""
     # Standard POSIX env var
@@ -36,7 +37,9 @@ def _ssh_agent_socket() -> Optional[str]:
         try:
             result = subprocess.run(
                 ["sc", "query", "ssh-agent"],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if "RUNNING" in result.stdout:
                 return "\\\\pipe\\openssh-ssh-agent"
@@ -51,7 +54,8 @@ def _git_credential_manager_installed() -> bool:
     try:
         out = subprocess.check_output(
             ["git", "config", "--global", "credential.helper"],
-            text=True, stderr=subprocess.DEVNULL,
+            text=True,
+            stderr=subprocess.DEVNULL,
         ).strip()
         return bool(out)
     except Exception:  # noqa
@@ -61,6 +65,7 @@ def _git_credential_manager_installed() -> bool:
 # ---------------------------------------------------------------------------
 # Strategy detection
 # ---------------------------------------------------------------------------
+
 
 def detect_strategy(preferred: str = "auto") -> str:
     """Return the active credential strategy name.
@@ -111,16 +116,20 @@ def _openssh_agent_args() -> list:
         sock = os.environ.get("SSH_AUTH_SOCK", "")
         if sock:
             return [
-                "-v", f"{sock}:/tmp/ssh-agent.sock",
-                "-e", "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
+                "-v",
+                f"{sock}:/tmp/ssh-agent.sock",
+                "-e",
+                "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
             ]
         return []
 
     sock = _ssh_agent_socket()
     if sock:
         return [
-            "-v", f"{sock}:/tmp/ssh-agent.sock:ro",
-            "-e", "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
+            "-v",
+            f"{sock}:/tmp/ssh-agent.sock:ro",
+            "-e",
+            "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
         ]
     return []
 
@@ -128,6 +137,7 @@ def _openssh_agent_args() -> list:
 # ---------------------------------------------------------------------------
 # Doctor check
 # ---------------------------------------------------------------------------
+
 
 def doctor_lines(preferred: str = "auto") -> list:
     """Return doctor output lines for the credential strategy."""
@@ -146,7 +156,8 @@ def doctor_lines(preferred: str = "auto") -> list:
         try:
             helper = subprocess.check_output(
                 ["git", "config", "--global", "credential.helper"],
-                text=True, stderr=subprocess.DEVNULL,
+                text=True,
+                stderr=subprocess.DEVNULL,
             ).strip()
         except Exception:  # noqa
             helper = "(unknown)"

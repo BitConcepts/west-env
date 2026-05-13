@@ -88,9 +88,16 @@ class EnvCommand(WestCommand):
         parser.add_argument(
             "action",
             choices=[
-                "init", "build", "shell", "doctor",
-                "sync", "flash", "debug",
-                "cache", "benchmark", "generate-tasks",
+                "init",
+                "build",
+                "shell",
+                "doctor",
+                "sync",
+                "flash",
+                "debug",
+                "cache",
+                "benchmark",
+                "generate-tasks",
             ],
             help="Environment action to perform",
         )
@@ -172,8 +179,7 @@ class EnvCommand(WestCommand):
             self._doctor(cfg, use_container)
 
         elif action == "sync":
-            self._sync(cfg, args.workspace_mode or cfg.workspace_mode,
-                       back=getattr(args, "back", False))
+            self._sync(cfg, args.workspace_mode or cfg.workspace_mode, back=getattr(args, "back", False))
 
         elif action == "flash":
             self._flash(cfg, passthrough)
@@ -212,6 +218,7 @@ class EnvCommand(WestCommand):
         # Extended: backend detection
         try:
             from west_env import backend as _backend
+
             print()
             for line in _backend.doctor_lines():
                 print(line)
@@ -221,6 +228,7 @@ class EnvCommand(WestCommand):
         # Extended: credential strategy
         try:
             from west_env import credentials as _creds
+
             print()
             for line in _creds.doctor_lines(cfg.git_credential_helper):
                 print(line)
@@ -230,6 +238,7 @@ class EnvCommand(WestCommand):
         # Extended: J-Link
         try:
             from west_env import flash as _flash
+
             print()
             for line in _flash.doctor_lines(cfg.jlink_mode):
                 print(line)
@@ -266,6 +275,7 @@ class EnvCommand(WestCommand):
 
     def _sync(self, cfg, mode, back=False):
         from west_env.sync import WorkspaceSync, _workspace_slug
+
         topdir = Path(self.topdir).resolve()
         ws = WorkspaceSync(workspace_mode=mode)
         engine_name = self._engine_name(cfg)
@@ -287,6 +297,7 @@ class EnvCommand(WestCommand):
 
     def _flash(self, cfg, passthrough):
         from west_env.flash import FlashManager
+
         if cfg.jlink_mode == "none":
             raise SystemExit("Flash disabled (jlink.mode = none)")
         artifact = passthrough[0] if passthrough else None
@@ -297,6 +308,7 @@ class EnvCommand(WestCommand):
 
     def _debug(self, cfg, passthrough):
         from west_env.flash import FlashManager
+
         fm = FlashManager(jlink_mode=cfg.jlink_mode)
         device = passthrough[0] if passthrough else "auto"
         print(f"Starting J-Link GDB server (device={device}, port={fm.gdb_port})...")
@@ -310,6 +322,7 @@ class EnvCommand(WestCommand):
 
     def _cache(self, cfg, sub_action, args):
         from west_env.cache import CacheManager
+
         cm = CacheManager(self._engine_name(cfg))
         if sub_action == "stats":
             cm.print_stats()
@@ -368,6 +381,7 @@ class EnvCommand(WestCommand):
         topdir = Path(self.topdir).resolve()
         from west_env.platform import generate_wrappers
         from west_env.vscode import write_tasks
+
         scripts_dir = topdir / "scripts"
         created = generate_wrappers(scripts_dir)
         for p in created:

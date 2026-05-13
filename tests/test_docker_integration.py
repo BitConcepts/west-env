@@ -47,7 +47,7 @@ def ensure_test_image():
     with tempfile.TemporaryDirectory(prefix="west-env-image-") as tmp:
         dockerfile = Path(tmp) / "Dockerfile"
         dockerfile.write_text(
-            f"FROM {BASE_TEST_IMAGE}\nENTRYPOINT []\nCMD [\"sh\"]\n",
+            f'FROM {BASE_TEST_IMAGE}\nENTRYPOINT []\nCMD ["sh"]\n',
             encoding="utf-8",
         )
         subprocess.check_call(
@@ -152,9 +152,12 @@ class DockerIntegrationTests(unittest.TestCase):
             app_dir = topdir / "app"
             app_dir.mkdir()
 
-            with pushd(app_dir), patch(
-                "west_env.container._west_topdir",
-                return_value=str(topdir),
+            with (
+                pushd(app_dir),
+                patch(
+                    "west_env.container._west_topdir",
+                    return_value=str(topdir),
+                ),
             ):
                 run_container(
                     make_cfg("docker"),
@@ -178,12 +181,16 @@ class DockerIntegrationTests(unittest.TestCase):
             app_dir.mkdir()
 
             with podman_proxy_path() as path_value:
-                with pushd(app_dir), patch(
-                    "west_env.container._west_topdir",
-                    return_value=str(topdir),
-                ), patch.dict(
-                    os.environ,
-                    {"PATH": path_value},
+                with (
+                    pushd(app_dir),
+                    patch(
+                        "west_env.container._west_topdir",
+                        return_value=str(topdir),
+                    ),
+                    patch.dict(
+                        os.environ,
+                        {"PATH": path_value},
+                    ),
                 ):
                     run_container(
                         make_cfg("podman"),
