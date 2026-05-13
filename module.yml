@@ -1,10 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
+# west-env Zephyr module descriptor
+# version: 0.1.0  (tracks pyproject.toml and git tag v0.1.0)
 
 name: west-env
 build:
   cmake: false
   kconfig: false
 description: >
-  Workspace-first west extension providing reproducible build
-  environments for Zephyr, supporting native and container-backed
-  workflows without modifying Zephyr core.
+  Cross-platform Zephyr RTOS developer environment manager (v0.1.0).
+  Provides reproducible container or VM-backed builds on Windows, Linux,
+  and macOS via the `west env` command without modifying Zephyr core.
+  Supports native and container execution, workspace sync, ccache,
+  Git credential forwarding, J-Link host flashing, and VSCode integration.
+security:
+  url: https://github.com/BitConcepts/west-env/security/advisories

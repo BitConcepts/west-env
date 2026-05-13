@@ -98,6 +98,7 @@ class EnvCommand(WestCommand):
                 "cache",
                 "benchmark",
                 "generate-tasks",
+                "version",
             ],
             help="Environment action to perform",
         )
@@ -214,6 +215,11 @@ class EnvCommand(WestCommand):
         elif action == "generate-tasks":
             self._generate_tasks(cfg)
 
+        elif action == "version":
+            from west_env import __version__
+
+            print(f"west-env v{__version__}")
+
     @staticmethod
     def _run_container(cfg, cmd, interactive=False):
         try:
@@ -226,7 +232,9 @@ class EnvCommand(WestCommand):
             return run_container(cfg, cmd, interactive=interactive)
 
     def _doctor(self, cfg, use_container):
-        print("west-env doctor\n")
+        from west_env import __version__
+
+        print(f"west-env doctor  (v{__version__})\n")
 
         ok = True
         ok &= check_python()
