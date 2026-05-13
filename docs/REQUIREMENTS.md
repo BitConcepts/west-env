@@ -298,3 +298,20 @@ Retired requirements (REQ-ENGINE-*, REQ-CONTAINER-001, REQ-UTIL-002, REQ-CMD-001
 - **Status**: Implemented
 - **Description**: The package installs via `pip install -e ".[test]"` and all unit tests pass via `pytest tests/`.
 
+### REQ-BUILD-002
+- **Component**: west_env.buildcheck, west_commands.env
+- **Status**: Implemented
+- **Description**: `west env build` detects when an existing `build/` directory was created in a different execution mode (native vs container) by reading `CMAKE_SOURCE_DIR` from `build/CMakeCache.txt`. If a mismatch is found, it prints a clear `[WARN]` message and exits with code 1 before the build starts.
+- **References**: closes #8
+
+### REQ-BUILD-003
+- **Component**: west_commands.env
+- **Status**: Implemented
+- **Description**: `west env build --clean` automatically removes a stale build directory (mode mismatch detected) before starting the build, without requiring manual intervention.
+- **References**: closes #8
+
+### REQ-BUILD-004
+- **Component**: west_env.container
+- **Status**: Implemented
+- **Description**: `PYTHONDONTWRITEBYTECODE=1` is set in every container invocation, preventing Python from writing root-owned `__pycache__` files into the mounted workspace volume.
+

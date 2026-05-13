@@ -56,7 +56,41 @@ jobs:
           tests/test_backend.py
           tests/test_sync.py
           tests/test_new_modules.py
+          tests/test_buildcheck.py
           -v
+
+      - name: macOS backend detection smoke test
+        if: matrix.os == 'macos-latest'
+        run: |
+          python - <<'EOF'
+          import sys
+          from west_env.backend import detect_all
+          probes = detect_all('darwin')
+          assert 'podman-machine' in probes, "Expected podman-machine probe on macOS"
+          assert 'docker-machine' in probes, "Expected docker-machine probe on macOS"
+          print("[PASS] macOS backend detection: probed", list(probes.keys()))
+          EOF
+
+  # --------------------------------------------------------------------------
+  # Podman integration tests — ubuntu only (Podman pre-installed on ubuntu)
+  # --------------------------------------------------------------------------
+  podman-integration:
+    name: Podman integration (ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install west-env
+        run: pip install -e ".[test]"
+      - name: Verify Podman available
+        run: podman --version
+      - name: Run Podman integration tests
+        run: pytest tests/test_podman_integration.py -v
+        env:
+          WEST_ENV_PODMAN_TEST_BASE_IMAGE: alpine/git:latest
 
   # --------------------------------------------------------------------------
   # Docker integration tests — ubuntu only (Docker available on GH runners)

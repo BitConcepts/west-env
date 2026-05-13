@@ -126,6 +126,11 @@ class EnvCommand(WestCommand):
             help="(sync only) Sync artifacts from container back to host",
         )
         parser.add_argument(
+            "--clean",
+            action="store_true",
+            help="(build) Remove stale build directory automatically if mode has changed",
+        )
+        parser.add_argument(
             "--ccache",
             action="store_true",
             help="(cache reset) Clear ccache only",
@@ -161,6 +166,18 @@ class EnvCommand(WestCommand):
                 print("Native environment selected")
 
         elif action == "build":
+            from west_env.buildcheck import clean_build_dir, detect_stale_build
+
+            build_dir = Path(self.topdir) / "build"
+            stale_msg = detect_stale_build(build_dir, use_container)
+            if stale_msg:
+                if getattr(args, "clean", False):
+                    clean_build_dir(build_dir)
+                    print(f"[OK] Removed stale build directory: {build_dir}")
+                else:
+                    print(stale_msg)
+                    raise SystemExit(1)
+
             cmd = ["west", "build"] + passthrough
             if use_container:
                 validate_workspace_layout(self.topdir)

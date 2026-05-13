@@ -258,8 +258,49 @@ These tests still execute in CI but their requirement targets are retired. They 
 
 ---
 
+## Buildcheck Tests (automated)
+
+### TEST-BUILD-003
+- **File**: tests/test_buildcheck.py
+- Covers: REQ-BUILD-002, REQ-BUILD-003
+- **Status**: Passing
+- **Note**: 18 unit tests covering: no-build-dir, no-cache, same-mode (no warn), native→container (warn), container→native (warn), Windows host paths, --clean removal.
+
+### TEST-BUILD-004
+- **File**: tests/test_podman_integration.py — `PodmanIntegrationTests.test_pythondontwritebytecode_env_var_is_set`
+- Covers: REQ-BUILD-004
+- **Status**: CI (Podman required)
+
+## Podman Integration Tests (CI — ubuntu only)
+
+### TEST-PODMAN-001
+- **File**: tests/test_podman_integration.py — `PodmanIntegrationTests.test_check_container_workspace_succeeds_with_podman`
+- Covers: REQ-CMD-006, REQ-CONTAINER-002
+- **Status**: CI (ubuntu-latest, Podman pre-installed)
+
+### TEST-PODMAN-002
+- **File**: tests/test_podman_integration.py — `PodmanIntegrationTests.test_run_container_executes_in_relative_subdirectory`
+- Covers: REQ-CONTAINER-002, REQ-CONTAINER-003
+- **Status**: CI (ubuntu-latest)
+- **Note**: Verifies /work CWD mapping and git safe.directory injection with Podman rootless.
+
+### TEST-PODMAN-003
+- **File**: tests/test_podman_integration.py — `PodmanIntegrationTests.test_git_safe_directory_injected`
+- Covers: REQ-CONTAINER-003, REQ-BUILD-004
+- **Status**: CI (ubuntu-latest)
+- **References**: closes #5
+
+## macOS Backend Detection Smoke Test (CI)
+
+### TEST-MACOS-001
+- **File**: .github/workflows/ci.yml — `macOS backend detection smoke test` step (unit-tests job, macos-latest only)
+- Covers: REQ-BACKEND-001, REQ-BACKEND-004
+- **Status**: CI (macos-latest × Python 3.10/3.11/3.12)
+- **Note**: Verifies `detect_all('darwin')` returns both `podman-machine` and `docker-machine` probe keys on macOS runners.
+- **References**: addresses #4 (automated backend probe validation)
+
 ## Coverage Summary
 
-All 47 active requirements have at least one test entry (automated, CI, or manual stub).
+All 47 active requirements plus REQ-BUILD-002/003/004 have at least one test entry.
 No coverage gaps carried forward from pre-realignment state.
 Both former gaps (REQ-CMD-003, REQ-CMD-005) are resolved by retirement of those requirements.
