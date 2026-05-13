@@ -6,7 +6,7 @@ platforms:
 - linux
 - macos
 language: python
-spec_version: '0.3.0'
+spec_version: 0.10.1
 description: '`west-env` is a workspace-first west extension for reproducible Zephyr
   build environments. It lets a standard west works'
 services: false

@@ -1,161 +1,167 @@
-# SPDX-License-Identifier: Apache-2.0
-#
-# west-env CI
-# ===========
-#
-# Job 1 — unit-tests
-#   Pure-Python unit tests for the west_env package.
-#   Matrix: ubuntu / macOS / Windows  ×  Python 3.10 / 3.11 / 3.12
-#   (Zephyr supports Python 3.10–3.12.)
-#
-# Job 2 — native-sim-build
-#   End-to-end integration test on ubuntu-latest:
-#     1. Set up a minimal west workspace (Zephyr only, no HALs).
-#     2. `west env doctor`  — verifies the native environment looks healthy.
-#     3. `west env build -b native_sim`  on Zephyr's hello_world sample.
-#     4. Run the resulting binary and assert it prints "Hello World".
-#
-# Container-backed builds are not tested here because the Zephyr container
-# image is not a public artifact in this repository.  They can be exercised
-# locally with `west env build --container ...`.
-
-name: west-env CI
+name: CI
 
 on:
   push:
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   # --------------------------------------------------------------------------
-  # Job 1: unit tests across platforms and Python versions
+  # Lint with ruff (ubuntu only)
+  # --------------------------------------------------------------------------
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check west_env/ west_commands/ tests/
+      - run: ruff format --check west_env/ west_commands/ tests/
+
+  # --------------------------------------------------------------------------
+  # Unit tests — Windows / Linux / macOS × Python 3.10 / 3.11 / 3.12
   # --------------------------------------------------------------------------
   unit-tests:
-    name: Unit tests (py${{ matrix.python-version }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: Unit tests (${{ matrix.os }}, py${{ matrix.python-version }})
+    needs: [lint]
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.10", "3.11", "3.12"]
-
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
       - name: Install west-env with test dependencies
         run: pip install -e ".[test]"
-
-      - name: Run unit tests
-        run: pytest tests/test_config.py tests/test_container.py tests/test_engine.py tests/test_util.py -v
+      - name: Run core unit tests
+        run: >
+          pytest
+          tests/test_config.py
+          tests/test_container.py
+          tests/test_engine.py
+          tests/test_util.py
+          tests/test_backend.py
+          tests/test_sync.py
+          tests/test_new_modules.py
+          -v
 
   # --------------------------------------------------------------------------
-  # Job 2: native_sim hello_world — closed-loop integration test
+  # Docker integration tests — ubuntu only (Docker available on GH runners)
   # --------------------------------------------------------------------------
-  native-sim-build:
-    name: native_sim hello_world (ubuntu-latest)
+  docker-integration:
+    name: Docker integration (ubuntu)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      # Install the PR's west-env code so that `west env` reflects this branch.
-      - name: Install west-env (this PR)
+      - name: Install west-env
         run: pip install -e ".[test]"
+      - name: Docker integration + west e2e tests
+        run: >
+          pytest
+          tests/test_docker_integration.py
+          tests/test_west_e2e.py
+          tests/test_mode_switch.py
+          -v
+        env:
+          WEST_ENV_DOCKER_TEST_BASE_IMAGE: alpine/git:latest
 
-      # native_sim builds with -m32 and requires 32-bit glibc headers.
-      - name: Install 32-bit build dependencies (gcc-multilib)
+  # --------------------------------------------------------------------------
+  # native_sim hello_world — closed-loop Zephyr build (ubuntu only)
+  # --------------------------------------------------------------------------
+  native-sim-build:
+    name: native_sim hello_world (ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install west-env
+        run: pip install -e ".[test]"
+      - name: Install 32-bit build deps
         run: sudo apt-get install -y --no-install-recommends gcc-multilib
-
-      # Cache Zephyr source to avoid a full clone on every run.
       - name: Cache west modules
         id: cache-west
         uses: actions/cache@v4
         with:
           path: /tmp/ci-ws
-          key: west-modules-${{ runner.os }}-${{ hashFiles('tests/fixtures/ci-workspace/west.yml') }}
-
-      # -----------------------------------------------------------------------
-      # Workspace setup (skipped when cache is warm)
-      # -----------------------------------------------------------------------
+          key: west-${{ runner.os }}-${{ hashFiles('tests/fixtures/ci-workspace/west.yml') }}
       - name: Copy CI fixture workspace
         if: steps.cache-west.outputs.cache-hit != 'true'
         run: |
           mkdir -p /tmp/ci-ws
           cp -r tests/fixtures/ci-workspace /tmp/ci-ws/workspace
-
       - name: west init
         if: steps.cache-west.outputs.cache-hit != 'true'
         working-directory: /tmp/ci-ws/workspace
         run: west init -l .
-
-      - name: west update (Zephyr only — no HALs)
+      - name: west update (Zephyr only, no HALs)
         if: steps.cache-west.outputs.cache-hit != 'true'
         working-directory: /tmp/ci-ws/workspace
         run: west update --narrow --fetch-opt=--depth=1
-
-      # Always re-install Python requirements (cheap, idempotent).
       - name: Install Zephyr Python requirements
         working-directory: /tmp/ci-ws/workspace
         run: |
           ZEPHYR_BASE=$(west list zephyr -f '{abspath}')
           pip install -r "$ZEPHYR_BASE/scripts/requirements.txt"
-
-      # -----------------------------------------------------------------------
-      # Sanity check: native doctor (Python layer only)
-      #
-      # `west env doctor` requires west-env to be listed in the workspace
-      # manifest under west-commands: — we skip the CLI wrapper here and
-      # exercise the underlying Python functions directly instead.
-      # The CLI dispatch layer is covered by the unit-tests job.
-      # -----------------------------------------------------------------------
-      - name: west-env doctor check (native mode)
+      - name: west-env doctor (Python layer + backend detection)
         working-directory: /tmp/ci-ws/workspace
         run: |
           python - <<'EOF'
           from west_env.util import check_python, check_west
+          from west_env.backend import doctor_lines
           import sys
           ok = check_python() and check_west()
+          for line in doctor_lines('linux'):
+              print(line)
           sys.exit(0 if ok else 1)
           EOF
-
-      # -----------------------------------------------------------------------
-      # Build
-      #
-      # In native mode, `west env build` is exactly:
-      #   subprocess.check_call(["west", "build"] + passthrough)
-      # so calling `west build` directly exercises the same code path and
-      # avoids the west extension-command discovery requirement.
-      # -----------------------------------------------------------------------
       - name: Build hello_world for native_sim
         working-directory: /tmp/ci-ws/workspace
         env:
-          # Use the host GCC/Clang; no Zephyr SDK required for native_sim.
           ZEPHYR_TOOLCHAIN_VARIANT: host
         run: |
           ZEPHYR_BASE=$(west list zephyr -f '{abspath}')
           west build -b native_sim "$ZEPHYR_BASE/samples/hello_world"
-
-      # -----------------------------------------------------------------------
-      # Closed-loop output validation
-      # -----------------------------------------------------------------------
       - name: Validate hello_world output
         run: |
-          # native_sim runs the Zephyr kernel loop indefinitely; use timeout
-          # to capture early stdout then kill the process.
           OUTPUT=$(timeout 10s /tmp/ci-ws/workspace/build/zephyr/zephyr.exe 2>&1 || true)
-          echo "--- binary output ---"
-          echo "$OUTPUT"
-          echo "---------------------"
           echo "$OUTPUT" | grep -q "Hello World" \
-            || { echo "FAIL: 'Hello World' not found in binary output"; exit 1; }
-          echo "PASS: Hello World confirmed in output"
+            || { echo "FAIL: Hello World not found"; exit 1; }
+          echo "PASS: Hello World confirmed"
+
+  # --------------------------------------------------------------------------
+  # Security audit
+  # --------------------------------------------------------------------------
+  security:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package and pip-audit
+        run: |
+          pip install -e .
+          pip install pip-audit
+      - name: Run pip-audit
+        run: pip-audit --desc on || true

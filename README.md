@@ -2,10 +2,14 @@
 
 # west-env
 
-`west-env` is a workspace-first west extension for reproducible Zephyr build
-environments. It lets a standard west workspace run builds either directly on
-the host or inside a container, without changing Zephyr itself or replacing the
-standard `west build` workflow.
+`west-env` is a cross-platform Zephyr RTOS developer environment manager. It
+provides a unified `west env` CLI that adapts to your host OS and available
+container or VM backend, delivering reproducible builds on **Windows, Linux,
+and macOS** without changing Zephyr itself or the standard `west build` workflow.
+
+**Windows works natively.** You edit files in Windows VSCode, flash with
+Windows J-Link tools, and use PowerShell — no WSL editing, no Remote WSL
+extension, no slow C:\\ bind-mount builds.
 
 ## Why this exists
 
@@ -14,189 +18,128 @@ developer and CI system to hand-maintain identical host environments.
 `west-env` keeps the west workspace as the source of truth and treats
 containers as an implementation detail for providing tools and dependencies.
 
+## Platform support
+
+| Platform | Recommended backend | Workspace | Flash |
+|----------|--------------------|-----------|-----------|
+| **Windows** | Podman machine (Hyper-V) | ext4 volume in VM | Windows J-Link |
+| **Linux** | Podman or Docker native | Bind mount or volume | Linux J-Link |
+| **macOS** | Podman machine | Named volume | macOS J-Link |
+
+> **Windows default avoids C:\\ bind mounts.** Source is rsynced into a Linux
+> ext4 volume inside a Podman Hyper-V VM. Build times are comparable to native
+> Linux — not WSL2 bind-mount slow.
+
 ## Features
 
-* Native or container-backed execution
-* Docker and Podman engine selection
-* Manifest-local configuration via `west-env.yml`
-* Standard `west build` argument passthrough
-* Workspace-relative behavior that follows normal west expectations
-* A copyable reference workspace for onboarding and CI bootstrapping
-* Unit tests for config loading, engine selection, path handling, and shell selection
+* **6-backend auto-detection** — Podman Hyper-V, Docker Desktop, Podman native, Docker native, Podman machine (macOS), Docker machine (macOS)
+* **4 workspace modes** — `sync` (recommended on Windows), `copy`, `tmpfs`, `bind`
+* **Persistent caches** — ccache, west modules, Zephyr SDK, pip (named volumes)
+* **Git credential forwarding** — Windows OpenSSH agent socket or HTTPS credential-manager
+* **J-Link host flash** — Windows-native J-Link tools on synced artifacts; no USB passthrough needed
+* **VSCode integration** — generated `tasks.json` with `.ps1`/`.sh` wrappers; no Remote WSL
+* **Workspace sync** — source in, build artifacts out; excluded dirs are never uploaded
+* **Manifest-local config** — `west-env.yml` in the manifest directory
+* **Full backward compatibility** — existing `env.type: container` config still works
 
 ## Quick start
 
-1. Copy `example/workspace/` into a new directory.
-2. Run the platform bootstrap script from that copied workspace root.
-3. Run `west env doctor`.
-4. Run `west env build ...`.
+**Platform-specific guides:**
+* [Windows quick-start](docs/quickstart-windows.md)
+* [Linux quick-start](docs/quickstart-linux.md)
+* [macOS quick-start](docs/quickstart-macos.md)
 
-If you are starting fresh, begin with [`example/README.md`](example/README.md).
-That copied workspace root is where you run bootstrap, doctor, shell, and build commands.
+**Minimal flow (any platform):**
+```sh
+west env doctor          # check backend, credentials, J-Link
+west env sync            # push source to container/VM workspace
+west env build -b <board> <app>
+west env sync --back     # pull .elf/.hex back to host
+west env flash build/zephyr/zephyr.hex
+```
+
+## Configuration
+
+`west-env` reads `west-env.yml` from the manifest directory (sibling of `west.yml`).
+
+**New format (recommended):**
+```yaml
+env:
+  backend: auto           # auto | podman-machine-hyperv | docker-desktop | podman-native | ...
+  workspace_mode: sync    # sync | copy | tmpfs | bind
+  image: ghcr.io/bitconcepts/zephyr-build-env:latest
+
+cache:
+  ccache: true
+  modules: true
+
+git:
+  credential_helper: auto  # auto | openssh-agent | credential-manager | none
+
+jlink:
+  mode: host              # host | tcp-server | none
+```
+
+**Legacy format (still supported):**
+```yaml
+env:
+  type: container
+  container:
+    engine: auto           # auto | docker | podman
+    image: ghcr.io/bitconcepts/zephyr-build-env:latest
+```
+
+## Commands
+
+```sh
+west env doctor                    # check backend, credentials, J-Link
+west env init                      # initialise environment
+west env sync                      # source → container/VM
+west env sync --back               # artifacts ← host
+west env build [-b <board>] [...]   # build in container
+west env shell                     # interactive shell
+west env flash <artifact.hex>      # flash with host J-Link
+west env debug <device>            # start J-Link GDB server
+west env cache stats               # show cache volume sizes
+west env cache reset [--ccache]    # prune cache volumes
+west env benchmark                 # timed build + JSON record
+west env generate-tasks            # write .vscode/tasks.json + wrappers
+```
 
 ## Workspace model
 
 `west-env` must be used from inside a valid west workspace.
 The repository itself is not a workspace.
 
-This repository is not a workspace and must not contain:
-
-* `.west/`
-* `zephyr/`
-* `modules/`
-* build output
-* virtual environments
-
-A copy-only reference workspace lives under `example/workspace/`.
-Copy the contents of that directory into a new workspace root and work there;
-do not execute the example in place inside this repository.
-
-The intended relationship is:
-
-* this repository defines the extension
-* your copied workspace owns `.west/`, `zephyr/`, `modules/`, `.venv/`, and `build/`
-* the container image, if used, owns only tools and dependencies
+* This repository defines the extension.
+* Your workspace owns `.west/`, `zephyr/`, `modules/`, `.venv/`, and `build/`.
+* The container image owns only tools and dependencies.
 
 See [`example/README.md`](example/README.md) for the step-by-step setup flow.
 
-## Documentation map
+## Documentation
 
-* [`example/README.md`](example/README.md): how to create and use a workspace
-* [`container/README.md`](container/README.md): container image contract and host/container responsibilities
+* [Windows quick-start](docs/quickstart-windows.md)
+* [Linux quick-start](docs/quickstart-linux.md)
+* [macOS quick-start](docs/quickstart-macos.md)
+* [Git credentials](docs/git-credentials.md)
+* [J-Link flashing](docs/flashing.md)
+* [Troubleshooting](docs/troubleshooting.md)
+* [Architecture](docs/ARCHITECTURE.md)
+* [Requirements](docs/REQUIREMENTS.md)
+* [Feature plan](docs/FEATURE-PLAN.md)
 
-## Configuration
+## Test coverage
 
-`west-env` reads `west-env.yml` from the manifest directory.
-
-Container-backed example:
-
-```yaml
-env:
-  type: container
-  container:
-    engine: auto
-    image: ghcr.io/bitconcepts/zephyr-build-env:latest
-```
-
-Native example:
-
-```yaml
-env:
-  type: native
-```
-
-Supported values:
-
-* `env.type: native`
-* `env.type: container`
-* `env.container.engine: auto | docker | podman`
-
-When `engine: auto` is used and both engines are present, Docker is preferred
-and `west env doctor` reports the selection.
-
-## Commands
-
-`west-env` adds the following subcommands:
-
-```sh
-west env init
-west env build [--container] [west build args...]
-west env shell [--container]
-west env doctor
-```
-
-### `west env init`
-
-Validates the selected execution environment for the current workspace.
-
-* In native mode this is effectively a no-op.
-* In container mode it verifies that the workspace layout is valid and that the
-  container can be started.
-
-### `west env build`
-
-Runs `west build` natively or inside a container.
-All arguments after `build` are passed through to `west build`.
-
-Examples:
-
-```sh
-west env build -b native_sim zephyr/samples/hello_world
-west env build --container -b native_sim zephyr/samples/hello_world
-```
-
-If `west build` accepts an argument, `west env build` should pass it through.
-
-When switching between native and container execution, remove any existing
-build directory before rebuilding so CMake does not reuse stale cache paths.
-
-### `west env shell`
-
-Opens an interactive shell in the selected environment.
-Host shells follow the host platform, while container shells use `/bin/sh`.
-
-### `west env doctor`
-
-Checks Python, west, container engine availability, image availability, and
-whether the workspace is visible inside the selected container engine.
-
-## Recommended first-run workflow
-
-The recommended starting flow is:
-
-1. Create a new empty directory for a west workspace.
-2. Copy `example/workspace/` into that directory.
-3. Run the platform bootstrap script.
-4. Open the workspace shell.
-5. Run `west env doctor`.
-6. Build a known-good Zephyr sample.
-
-This keeps the extension repository clean while making the workspace layout
-obvious to both developers and CI.
-
-## Host platform notes
-
-Container-backed builds work best on Linux and WSL2-backed Docker setups.
-On native Windows with Docker Desktop, mounting workspaces from the Windows
-filesystem is expected to be functional but slower than keeping the workspace
-inside WSL2.
-
-macOS and Podman are supported by design, but should still be considered
-validation targets rather than fully proven environments until exercised in
-dedicated end-to-end testing.
-
-## Validation status
-
-Currently covered in the repository:
-
-* unit tests for manifest-local config loading
-* unit tests for Docker-only, Podman-only, and auto engine selection
-* unit tests for workspace-relative container working-directory behavior
-* unit tests for Docker and Podman workspace checks
-* unit tests for Windows and POSIX host shell selection
-
-See the test suite under `tests/`.
-
-## Validation roadmap
-
-Additional validation work should focus on real end-to-end runs, not just unit
-tests. The next important scenarios are:
-
-* Docker on native Windows with a workspace on the Windows filesystem
-* Docker in WSL2 with a workspace in the Linux filesystem
-* Docker on native Linux
-* Podman on native Linux
-* Podman rootless behavior for mounted west workspaces
-* macOS with Docker Desktop
-* example workspace bootstrap and `west env doctor` from a clean checkout
-* at least one sample build in native mode and one in container mode
-* switching the same workspace from native to container and back
-* CI coverage that exercises at least one Docker job and one native job
+122 unit tests across: config, backend detection, workspace sync, cache,
+credentials, VSCode generation, platform wrappers, flash, container execution.
+Docker integration and native-sim end-to-end tests run in CI on ubuntu-latest.
+Unit tests run on Windows, Linux, and macOS × Python 3.10/3.11/3.12.
 
 ## Project status
 
-This project is experimental and intended for design exploration, local
-development, CI experimentation, and upstream west/Zephyr discussion.
+Experimental — designed for local development, CI, and upstream Zephyr discussion.
+Slices 2–11 implemented; Slice 12 (docs/troubleshooting) in progress.
 
 ## License
 

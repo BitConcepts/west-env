@@ -13,6 +13,7 @@ env = "west_commands.env:EnvCommand"
 
 [project.optional-dependencies]
 test = ["pytest>=7.0"]
+dev  = ["pytest>=7.0", "ruff>=0.4"]
 
 [build-system]
 requires = ["setuptools>=61"]
@@ -26,3 +27,11 @@ packages = [
   "west_env",
   "west_commands",
 ]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+# E402: sys.path manipulation before imports is intentional in test files and west_commands.
+ignore = ["E402"]

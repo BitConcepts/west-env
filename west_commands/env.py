@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
+import json
+import platform as _platform_mod
 import sys
+import time
 from pathlib import Path
 import inspect
 import argparse
@@ -78,20 +81,52 @@ class EnvCommand(WestCommand):
             self.name,
             add_help=True,
             allow_abbrev=False,
-            help="Run west commands in native or container environments",
+            help="Run west commands in native or container/VM environments",
             description=self.description,
         )
 
         parser.add_argument(
             "action",
-            choices=["init", "build", "shell", "doctor"],
+            choices=[
+                "init", "build", "shell", "doctor",
+                "sync", "flash", "debug",
+                "cache", "benchmark", "generate-tasks",
+            ],
             help="Environment action to perform",
         )
 
+        # Legacy flag (kept for backward compat)
         parser.add_argument(
             "--container",
             action="store_true",
-            help="Force container execution",
+            help="Force container execution (legacy; use --backend instead)",
+        )
+        parser.add_argument(
+            "--backend",
+            default=None,
+            help="Override backend (e.g. docker-native, podman-native, auto)",
+        )
+        parser.add_argument(
+            "--mode",
+            default=None,
+            dest="workspace_mode",
+            choices=["sync", "copy", "tmpfs", "bind"],
+            help="Override workspace mode",
+        )
+        parser.add_argument(
+            "--back",
+            action="store_true",
+            help="(sync only) Sync artifacts from container back to host",
+        )
+        parser.add_argument(
+            "--ccache",
+            action="store_true",
+            help="(cache reset) Clear ccache only",
+        )
+        parser.add_argument(
+            "--modules",
+            action="store_true",
+            help="(cache reset) Clear modules cache only",
         )
 
         parser.add_argument(
@@ -105,10 +140,12 @@ class EnvCommand(WestCommand):
     def do_run(self, args, unknown_args):
         cfg = load_config(self.topdir)
         use_container = args.container or cfg.env_type == "container"
-        passthrough = [a for a in args.args if a != "--container"]
-        passthrough.extend(a for a in unknown_args if a != "--container")
+        passthrough = [a for a in args.args if a not in ("--container",)]
+        passthrough.extend(a for a in unknown_args if a not in ("--container",))
 
-        if args.action == "init":
+        action = args.action
+
+        if action == "init":
             print("Initializing environment...")
             if use_container:
                 validate_workspace_layout(self.topdir)
@@ -116,7 +153,7 @@ class EnvCommand(WestCommand):
             else:
                 print("Native environment selected")
 
-        elif args.action == "build":
+        elif action == "build":
             cmd = ["west", "build"] + passthrough
             if use_container:
                 validate_workspace_layout(self.topdir)
@@ -124,15 +161,35 @@ class EnvCommand(WestCommand):
             else:
                 run_host(cmd)
 
-        elif args.action == "shell":
+        elif action == "shell":
             if use_container:
                 validate_workspace_layout(self.topdir)
                 self._run_container(cfg, ["/bin/sh"], interactive=True)
             else:
                 run_host(host_shell_command())
 
-        elif args.action == "doctor":
+        elif action == "doctor":
             self._doctor(cfg, use_container)
+
+        elif action == "sync":
+            self._sync(cfg, args.workspace_mode or cfg.workspace_mode,
+                       back=getattr(args, "back", False))
+
+        elif action == "flash":
+            self._flash(cfg, passthrough)
+
+        elif action == "debug":
+            self._debug(cfg, passthrough)
+
+        elif action == "cache":
+            sub = passthrough[0] if passthrough else "stats"
+            self._cache(cfg, sub, args)
+
+        elif action == "benchmark":
+            self._benchmark(cfg, passthrough)
+
+        elif action == "generate-tasks":
+            self._generate_tasks(cfg)
 
     @staticmethod
     def _run_container(cfg, cmd, interactive=False):
@@ -152,11 +209,39 @@ class EnvCommand(WestCommand):
         ok &= check_python()
         ok &= check_west()
 
+        # Extended: backend detection
+        try:
+            from west_env import backend as _backend
+            print()
+            for line in _backend.doctor_lines():
+                print(line)
+        except Exception:
+            pass
+
+        # Extended: credential strategy
+        try:
+            from west_env import credentials as _creds
+            print()
+            for line in _creds.doctor_lines(cfg.git_credential_helper):
+                print(line)
+        except Exception:
+            pass
+
+        # Extended: J-Link
+        try:
+            from west_env import flash as _flash
+            print()
+            for line in _flash.doctor_lines(cfg.jlink_mode):
+                print(line)
+        except Exception:
+            pass
+
+        # Legacy container checks (kept for test compatibility)
         if use_container:
             ok &= check_container(cfg)
             ok &= self._doctor_container_workspace(cfg)
         else:
-            print("[INFO] container execution disabled")
+            print("\n[INFO] container execution disabled")
 
         print()
         if ok:
@@ -165,17 +250,9 @@ class EnvCommand(WestCommand):
             print("One or more checks failed [FAIL]")
 
     def _doctor_container_workspace(self, cfg):
-        """
-        Verify the container can see:
-          - .west/ at /work (west topdir)
-          - the configured manifest file (often workspace/west.yml)
-        """
         topdir = Path(self.topdir).resolve()
-
-        # Compute manifest location from host .west/config, then check in-container
         mpath, mfile = _read_west_manifest_location(topdir)
         manifest_rel = f"{mpath.rstrip('/')}/{mfile}".lstrip("./")
-
         try:
             check_container_workspace(cfg, topdir, manifest_rel)
             print("[PASS] container workspace visibility")
@@ -186,3 +263,126 @@ class EnvCommand(WestCommand):
             print(f"       manifest: {manifest_rel}")
             print("       ensure you run west from the workspace root")
             return False
+
+    def _sync(self, cfg, mode, back=False):
+        from west_env.sync import WorkspaceSync, _workspace_slug
+        topdir = Path(self.topdir).resolve()
+        ws = WorkspaceSync(workspace_mode=mode)
+        engine_name = self._engine_name(cfg)
+        volume = f"west-env-ws-{_workspace_slug(topdir)}"
+
+        if back:
+            print(f"Syncing artifacts back from container (mode={mode})...")
+            artifacts_dir = topdir / "artifacts"
+            ws.sync_from_volume(engine_name, volume, artifacts_dir)
+            print(f"[OK] artifacts written to {artifacts_dir}")
+        else:
+            print(f"Syncing source to container (mode={mode})...")
+            ws.warn_if_needed()
+            if mode in ("sync", "copy", "tmpfs"):
+                ws.sync_to_volume(topdir, engine_name, volume)
+                print(f"[OK] source synced to volume {volume}")
+            else:
+                print("[INFO] bind mode: no sync needed; host path mounted directly")
+
+    def _flash(self, cfg, passthrough):
+        from west_env.flash import FlashManager
+        if cfg.jlink_mode == "none":
+            raise SystemExit("Flash disabled (jlink.mode = none)")
+        artifact = passthrough[0] if passthrough else None
+        if not artifact:
+            raise SystemExit("Usage: west env flash <artifact.hex>")
+        fm = FlashManager(jlink_mode=cfg.jlink_mode)
+        fm.flash(Path(artifact), extra_args=passthrough[1:] or None)
+
+    def _debug(self, cfg, passthrough):
+        from west_env.flash import FlashManager
+        fm = FlashManager(jlink_mode=cfg.jlink_mode)
+        device = passthrough[0] if passthrough else "auto"
+        print(f"Starting J-Link GDB server (device={device}, port={fm.gdb_port})...")
+        proc = fm.start_gdb_server(device)
+        print(f"[OK] J-Link GDB server started (PID {proc.pid})")
+        print("     Connect GDB inside container: target remote host.docker.internal:2331")
+        try:
+            proc.wait()
+        except KeyboardInterrupt:
+            proc.terminate()
+
+    def _cache(self, cfg, sub_action, args):
+        from west_env.cache import CacheManager
+        cm = CacheManager(self._engine_name(cfg))
+        if sub_action == "stats":
+            cm.print_stats()
+        elif sub_action == "reset":
+            if getattr(args, "ccache", False):
+                cm.reset("ccache")
+            elif getattr(args, "modules", False):
+                cm.reset("modules")
+            else:
+                cm.reset("all")
+        else:
+            raise SystemExit(f"Unknown cache sub-action: {sub_action!r}. Use 'stats' or 'reset'.")
+
+    def _benchmark(self, cfg, passthrough):
+        topdir = Path(self.topdir).resolve()
+        board = "native_sim"
+        sample = None
+        for i, arg in enumerate(passthrough):
+            if arg in ("-b", "--board") and i + 1 < len(passthrough):
+                board = passthrough[i + 1]
+            elif not arg.startswith("-"):
+                sample = arg
+
+        print(f"Benchmarking: board={board}, mode={cfg.workspace_mode}")
+        start = time.monotonic()
+        cmd = ["west", "build", "-b", board] + ([sample] if sample else [])
+        try:
+            if cfg.env_type == "container":
+                self._run_container(cfg, cmd)
+            else:
+                run_host(cmd)
+        except Exception as exc:
+            print(f"[FAIL] build failed: {exc}")
+            return
+        elapsed = time.monotonic() - start
+
+        result = {
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "machine": _platform_mod.node(),
+            "os": _platform_mod.platform(),
+            "python": _platform_mod.python_version(),
+            "board": board,
+            "sample": sample,
+            "backend": cfg.backend,
+            "workspace_mode": cfg.workspace_mode,
+            "elapsed_seconds": round(elapsed, 2),
+        }
+        bench_dir = topdir / "docs" / "benchmarks"
+        bench_dir.mkdir(parents=True, exist_ok=True)
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
+        out = bench_dir / f"benchmark-{stamp}.json"
+        out.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        print(f"\n[OK] {elapsed:.1f}s — results: {out}")
+
+    def _generate_tasks(self, cfg):
+        topdir = Path(self.topdir).resolve()
+        from west_env.platform import generate_wrappers
+        from west_env.vscode import write_tasks
+        scripts_dir = topdir / "scripts"
+        created = generate_wrappers(scripts_dir)
+        for p in created:
+            print(f"[OK] wrapper: {p.relative_to(topdir)}")
+        tasks_path = write_tasks(topdir)
+        print(f"[OK] VSCode tasks: {tasks_path.relative_to(topdir)}")
+        print(f"     Platform: {'PowerShell (.ps1)' if sys.platform == 'win32' else 'shell (.sh)'}")
+        print("     No Remote WSL extension required.")
+
+    def _engine_name(self, cfg) -> str:
+        """Return underlying binary name (docker or podman) for the config."""
+        backend = getattr(cfg, "backend", "auto") or "auto"
+        if "podman" in backend:
+            return "podman"
+        if "docker" in backend:
+            return "docker"
+        engine = getattr(cfg, "engine", "docker") or "docker"
+        return "docker" if engine == "auto" else engine

@@ -147,7 +147,8 @@ class NestedPodmanInDockerTests(unittest.TestCase):
                     OUTER_TEST_IMAGE,
                     "sh",
                     "-lc",
-                    "podman build -t inner-git-shell:latest -f /hosttmp/Dockerfile /hosttmp >/dev/null && python3 /hosttmp/run_podman_smoke.py",
+                    "podman build -t inner-git-shell:latest -f /hosttmp/Dockerfile /hosttmp >/dev/null"  # noqa: E501
+                    " && python3 /hosttmp/run_podman_smoke.py",
                 ],
                 capture_output=True,
                 text=True,
