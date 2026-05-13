@@ -48,6 +48,8 @@ def _container_args(cfg, command, interactive=False, workspace=None, host_cwd=No
         container_wd,
         "-e",
         "PYTHONPATH=/work/modules/west-env",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
     ]
 
     if interactive:
