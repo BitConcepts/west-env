@@ -327,10 +327,7 @@ class EnvCommand(WestCommand):
                 timeout=15,
             )
         except subprocess.TimeoutExpired:
-            raise SystemExit(
-                f"FATAL: '{engine_name} info' timed out.\n"
-                f"  Is the Docker/Podman daemon running?"
-            )
+            raise SystemExit(f"FATAL: '{engine_name} info' timed out.\n  Is the Docker/Podman daemon running?")
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
             raise SystemExit(
                 f"FATAL: '{engine_name} info' failed: {exc}\n"

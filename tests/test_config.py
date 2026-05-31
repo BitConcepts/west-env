@@ -99,7 +99,6 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(cfg.engine, "docker")
             self.assertIsNone(cfg.image)
 
-
     def test_wants_container_legacy_container(self):
         """Legacy env.type=container should set wants_container=True."""
         from west_env.config import EnvConfig
