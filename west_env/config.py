@@ -113,6 +113,26 @@ class EnvConfig:
         if self.jlink_mode not in {"host", "tcp-server", "none"}:
             raise ValueError(f"unsupported jlink.mode: {self.jlink_mode}")
 
+    @property
+    def wants_container(self) -> bool:
+        """Return True if config implies container-backed execution.
+
+        The new config format (env.backend / env.workspace_mode) does not
+        set ``env.type`` to ``"container"``.  This property bridges the
+        gap so callers don't have to know about both code paths.
+        """
+        # Legacy explicit container mode
+        if self.env_type == "container":
+            return True
+        # New format: explicit non-native backend
+        if self.backend not in (None, "auto"):
+            return True
+        # New format with auto backend: workspace modes that require a
+        # container volume imply container execution
+        if self.workspace_mode in ("sync", "copy", "tmpfs"):
+            return True
+        return False
+
 
 def find_config_path(topdir=None):
     if topdir is None:

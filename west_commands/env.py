@@ -152,7 +152,7 @@ class EnvCommand(WestCommand):
 
     def do_run(self, args, unknown_args):
         cfg = load_config(self.topdir)
-        use_container = args.container or cfg.env_type == "container"
+        use_container = args.container or cfg.wants_container
         passthrough = [a for a in args.args if a not in ("--container",)]
         passthrough.extend(a for a in unknown_args if a not in ("--container",))
 
@@ -270,12 +270,15 @@ class EnvCommand(WestCommand):
         except Exception:
             pass
 
-        # Legacy container checks (kept for test compatibility)
+        # Container checks
         if use_container:
             ok &= check_container(cfg)
             ok &= self._doctor_container_workspace(cfg)
         else:
-            print("\n[INFO] container execution disabled")
+            if cfg.wants_container:
+                print("\n[INFO] container execution enabled (new config format)")
+            else:
+                print("\n[INFO] container execution disabled")
 
         print()
         if ok:
@@ -300,22 +303,67 @@ class EnvCommand(WestCommand):
 
     def _sync(self, cfg, mode, back=False):
         from west_env.sync import WorkspaceSync, _workspace_slug
+        import subprocess
+        from shutil import which
 
         topdir = Path(self.topdir).resolve()
         ws = WorkspaceSync(workspace_mode=mode)
         engine_name = self._engine_name(cfg)
         volume = f"west-env-ws-{_workspace_slug(topdir)}"
 
+        # Validate engine is available before attempting any container ops
+        if not which(engine_name):
+            raise SystemExit(
+                f"FATAL: '{engine_name}' not found in PATH.\n"
+                f"  Install Docker or Podman, or check your PATH.\n"
+                f"  Run 'west env doctor' for diagnostics."
+            )
+
+        # Verify engine is responsive
+        try:
+            subprocess.check_output(
+                [engine_name, "info"],
+                stderr=subprocess.DEVNULL,
+                timeout=15,
+            )
+        except subprocess.TimeoutExpired:
+            raise SystemExit(
+                f"FATAL: '{engine_name} info' timed out.\n"
+                f"  Is the Docker/Podman daemon running?"
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            raise SystemExit(
+                f"FATAL: '{engine_name} info' failed: {exc}\n"
+                f"  Is the Docker/Podman daemon running?\n"
+                f"  Run 'west env doctor' for diagnostics."
+            )
+
         if back:
             print(f"Syncing artifacts back from container (mode={mode})...")
             artifacts_dir = topdir / "artifacts"
-            ws.sync_from_volume(engine_name, volume, artifacts_dir)
+            try:
+                ws.sync_from_volume(engine_name, volume, artifacts_dir)
+            except subprocess.CalledProcessError as exc:
+                raise SystemExit(
+                    f"FATAL: artifact sync failed (exit {exc.returncode}).\n"
+                    f"  Volume: {volume}\n"
+                    f"  Ensure you have run 'west env sync' and built at least once."
+                )
             print(f"[OK] artifacts written to {artifacts_dir}")
         else:
             print(f"Syncing source to container (mode={mode})...")
             ws.warn_if_needed()
             if mode in ("sync", "copy", "tmpfs"):
-                ws.sync_to_volume(topdir, engine_name, volume)
+                try:
+                    ws.sync_to_volume(topdir, engine_name, volume)
+                except subprocess.CalledProcessError as exc:
+                    raise SystemExit(
+                        f"FATAL: source sync failed (exit {exc.returncode}).\n"
+                        f"  Engine: {engine_name}\n"
+                        f"  Volume: {volume}\n"
+                        f"  Ensure the container runtime is running and the\n"
+                        f"  'alpine' image is available (run: {engine_name} pull alpine)."
+                    )
                 print(f"[OK] source synced to volume {volume}")
             else:
                 print("[INFO] bind mode: no sync needed; host path mounted directly")
@@ -375,7 +423,7 @@ class EnvCommand(WestCommand):
         start = time.monotonic()
         cmd = ["west", "build", "-b", board] + ([sample] if sample else [])
         try:
-            if cfg.env_type == "container":
+            if cfg.wants_container:
                 self._run_container(cfg, cmd)
             else:
                 run_host(cmd)

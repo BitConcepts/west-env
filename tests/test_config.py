@@ -100,5 +100,48 @@ class ConfigTests(unittest.TestCase):
             self.assertIsNone(cfg.image)
 
 
+    def test_wants_container_legacy_container(self):
+        """Legacy env.type=container should set wants_container=True."""
+        from west_env.config import EnvConfig
+
+        cfg = EnvConfig({"env": {"type": "container", "container": {"engine": "docker"}}})
+        self.assertTrue(cfg.wants_container)
+
+    def test_wants_container_legacy_native(self):
+        """Legacy env.type=native with no backend should set wants_container=False."""
+        from west_env.config import EnvConfig
+
+        cfg = EnvConfig({"env": {"type": "native"}})
+        self.assertFalse(cfg.wants_container)
+
+    def test_wants_container_new_format_explicit_backend(self):
+        """New format with explicit backend should set wants_container=True."""
+        from west_env.config import EnvConfig
+
+        cfg = EnvConfig({"env": {"backend": "docker-desktop"}})
+        self.assertTrue(cfg.wants_container)
+
+    def test_wants_container_new_format_sync_mode(self):
+        """New format with workspace_mode=sync implies container execution."""
+        from west_env.config import EnvConfig
+
+        cfg = EnvConfig({"env": {"backend": "auto", "workspace_mode": "sync"}})
+        self.assertTrue(cfg.wants_container)
+
+    def test_wants_container_new_format_bind_mode_auto(self):
+        """New format with workspace_mode=bind and auto backend is native."""
+        from west_env.config import EnvConfig
+
+        cfg = EnvConfig({"env": {"backend": "auto", "workspace_mode": "bind"}})
+        self.assertFalse(cfg.wants_container)
+
+    def test_wants_container_empty_config(self):
+        """Empty config should not want container."""
+        from west_env.config import EnvConfig
+
+        cfg = EnvConfig({})
+        self.assertFalse(cfg.wants_container)
+
+
 if __name__ == "__main__":
     unittest.main()
